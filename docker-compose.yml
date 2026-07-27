@@ -1,0 +1,36 @@
+# SellerSense infrastructure.
+#
+#   docker compose up -d        # start Postgres 16 + pgvector
+#   docker compose down         # stop (data persists in the named volume)
+#
+# The backend connects via DATABASE_URL (see .env.example). Any Postgres with
+# the pgvector extension works — e.g. Homebrew Postgres — by pointing
+# DATABASE_URL at it instead.
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: sellersense-db
+    environment:
+      POSTGRES_USER: sellersense
+      POSTGRES_PASSWORD: sellersense
+      POSTGRES_DB: sellersense
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sellersense -d sellersense"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Redis lands with the RQ worker upgrade in a later iteration.
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: sellersense-redis
+  #   ports:
+  #     - "6379:6379"
+
+volumes:
+  pgdata:
