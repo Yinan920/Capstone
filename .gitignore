@@ -49,6 +49,10 @@ Thumbs.db
 .vscode/
 .claude/
 
+# --- Personal writeups kept local-only, not pushed to GitHub ---
+docs/course-submission.md
+docs/video-script.md
+
 # --- Logs & scratch ---
 *.log
 .cache/
