@@ -1,0 +1,17 @@
+# Upload only what the Docker build needs.
+.git/
+.gitignore
+.env
+.env.*
+.claude/
+.vscode/
+docs/
+backend/.venv/
+backend/.pytest_cache/
+backend/**/__pycache__/
+backend/sellersense_backend.egg-info/
+frontend/node_modules/
+frontend/dist/
+frontend/e2e/shots/
+frontend/.env.local
+**/.DS_Store

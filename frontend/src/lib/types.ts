@@ -82,6 +82,26 @@ export interface AnalysisJob {
   status: JobStatus;
   progress: number; // 0..100
   createdAt: string;
+  error?: string | null;
+}
+
+/* ---- Auth & upload (backend contract) ---- */
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
+export interface UploadResponse {
+  dataset: Dataset;
+  job: AnalysisJob;
+}
+
+export interface UploadInput {
+  file: File;
+  name: string;
+  productName: string;
+  source: Channel;
 }
 
 /** Everything the insights dashboard needs for one dataset. */

@@ -1,6 +1,7 @@
 import { Crown, Sparkles } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useAppStore } from '@/store/appStore';
+import { USE_MOCKS } from '@/lib/config';
 import Button from './Button';
 
 /**
@@ -34,10 +35,20 @@ export default function PremiumGate({
           </div>
           <h3 className="text-xl font-extrabold tracking-tight text-ink">{title}</h3>
           <p className="mx-auto mt-2 max-w-sm text-sm text-ink/60">{blurb}</p>
-          <Button variant="primary" className="mt-5" onClick={() => setTier('premium')}>
-            <Sparkles className="h-4 w-4" /> Unlock with Premium
-          </Button>
-          <p className="mt-3 text-xs text-ink/40">Demo: switch the plan toggle to preview instantly.</p>
+          {USE_MOCKS ? (
+            <>
+              <Button variant="primary" className="mt-5" onClick={() => setTier('premium')}>
+                <Sparkles className="h-4 w-4" /> Unlock with Premium
+              </Button>
+              <p className="mt-3 text-xs text-ink/40">Demo: switch the plan toggle to preview instantly.</p>
+            </>
+          ) : (
+            <p className="mt-4 text-xs text-ink/45">
+              Your account is on the Free plan — the API enforces this with a real 402. Premium
+              checkout ships in a later milestone; for now, sign in with a Premium account to
+              preview these panels.
+            </p>
+          )}
         </div>
       </div>
     </div>

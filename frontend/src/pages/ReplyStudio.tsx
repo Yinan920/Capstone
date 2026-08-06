@@ -53,8 +53,13 @@ export default function ReplyStudio() {
         title="Reply Studio is a Premium feature"
         blurb="Generate brand-tone reply drafts for negative reviews and paste them straight into your seller portal."
       >
-        {isLoading || !selected ? (
+        {isLoading ? (
           <Loading label="Loading reviews…" />
+        ) : !selected ? (
+          <Card className="py-16 text-center">
+            <p className="text-sm font-semibold text-ink">No negative reviews to reply to yet.</p>
+            <p className="mt-1 text-xs text-ink/45">Upload a dataset first — complaints will queue up here.</p>
+          </Card>
         ) : (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
             {/* Review queue */}

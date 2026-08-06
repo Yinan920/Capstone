@@ -4,9 +4,21 @@ AI-driven customer-feedback intelligence for small/medium e-commerce sellers:
 upload store reviews → async AI analysis (sentiment, theme clustering, complaint
 keywords, alerts) → insights dashboard, competitor benchmarking, and reply drafts.
 
+**Live demo (GCP Cloud Run + Cloud SQL):** https://sellersense-414647520736.us-central1.run.app
+— sign in with `demo@novabrew.co` / `demo1234!` (premium) or register a free account.
+Architecture, commands, and the decisions-and-pitfalls writeup: [docs/deployment.md](docs/deployment.md).
+
+> **On the AI providers:** every AI capability (sentiment, embeddings, theme labeling,
+> reply drafts) sits behind an adapter interface. The deployed demo intentionally runs the
+> deterministic mock adapters — zero API keys, zero per-request cost, fully reproducible
+> results for graders. Switching to real Claude (Haiku for batched sentiment, Sonnet for
+> theme summaries and replies) is configuration, not code: set `LLM_PROVIDER=anthropic`
+> and provide `ANTHROPIC_API_KEY`. The real adapter ships in
+> [backend/app/integrations/llm/anthropic.py](backend/app/integrations/llm/anthropic.py).
+
 Monorepo:
 
-- `frontend/` — React 18 + TypeScript + Vite + Tailwind + Recharts (Iteration 0 ships with mock data; flip `VITE_USE_MOCKS=false` to use the real API)
+- `frontend/` — React 18 + TypeScript + Vite + Tailwind + Recharts, fully integrated with the backend (JWT auth, upload flow with live job progress; `VITE_USE_MOCKS=true` restores the standalone mock demo)
 - `backend/` — FastAPI + SQLAlchemy 2.0 async + PostgreSQL 16 + pgvector
 - `docs/` — API spec, database design, test cases & results
 
