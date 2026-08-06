@@ -16,7 +16,11 @@ RUN npm run build
 FROM python:3.12-slim
 WORKDIR /app
 COPY backend/ ./
-RUN pip install --no-cache-dir .
+# The `anthropic` extra ships in the image so switching from the mock adapters
+# to real Claude is purely a config change (LLM_PROVIDER + ANTHROPIC_API_KEY),
+# with no rebuild. sentence-transformers is deliberately left out — it would add
+# ~2 GB and the cloud deployment uses the deterministic embedding provider.
+RUN pip install --no-cache-dir ".[anthropic]"
 COPY --from=frontend /fe/dist ./static
 
 # Cloud Run injects PORT (8080). Migrations are NOT run here — they run as a

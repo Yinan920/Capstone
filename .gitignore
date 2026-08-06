@@ -5,6 +5,7 @@
 !frontend/.env.example
 *.pem
 *.key
+docs/api-key
 
 # --- Python (backend) ---
 __pycache__/

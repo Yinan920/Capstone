@@ -139,18 +139,31 @@ Two caveats worth stating plainly:
   honest limit of "BackgroundTasks in a serverless container" — fine for this scale,
   designed to be replaced beyond it.
 
-**5. Mock AI providers in the cloud are an explicit engineering decision.** Every AI
-capability (sentiment, embeddings, theme labels, reply drafts) sits behind an adapter
-interface. The deployed configuration selects the deterministic mock implementations:
-the demo costs $0 in API fees, is fully reproducible, and needs zero secrets. Switching to
-real Claude is configuration, not code: store a key as a secret and flip two env vars —
+**5. Mock AI providers in the cloud are an explicit engineering decision — and the real
+path is verified, not theoretical.** Every AI capability sits behind an adapter interface.
+The deployed configuration selects the deterministic mocks: $0 API fees, reproducible
+output, no secrets needed for a public demo URL. Switching is configuration, not code:
 
 ```bash
 echo -n "<key>" | gcloud secrets create anthropic-api-key --data-file=-
 gcloud run services update sellersense --region us-central1 \
-  --set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest \
+  --set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest,DATABASE_URL=database-url:latest,JWT_SECRET=jwt-secret:latest \
   --set-env-vars LLM_PROVIDER=anthropic,EMBEDDINGS_PROVIDER=mock
 ```
+
+This was executed against the live service (revision `sellersense-00002`): the real
+pipeline analyzed 50 reviews in ~30 s and produced sharper themes than the mocks — notably
+catching a complaint cluster the keyword heuristic mislabeled. See the comparison table and
+screenshot in the [README](../README.md#verified-with-real-claude). The service was then
+reverted to mocks (revision `sellersense-00003`) so the public demo stays free and
+deterministic; the key remains in Secret Manager, unreferenced by the running revision.
+
+*Prerequisite that bit once:* `anthropic` is an **optional** dependency in
+`pyproject.toml`, so `pip install .` left it out of the image and the first switch attempt
+would have failed at import. The Dockerfile now installs `.[anthropic]`, which is what
+makes "configuration, not code" literally true. `sentence-transformers` is deliberately
+still excluded — it would add ~2 GB for an embedding provider the cloud deployment doesn't
+use.
 
 **6. `npm ci` broke in the image although it worked locally.** The lockfile had been
 touched by a newer npm (v11) than the image's (v10), and `npm ci` refuses lockfiles it

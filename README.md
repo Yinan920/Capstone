@@ -8,13 +8,49 @@ keywords, alerts) → insights dashboard, competitor benchmarking, and reply dra
 — sign in with `demo@novabrew.co` / `demo1234!` (premium) or register a free account.
 Architecture, commands, and the decisions-and-pitfalls writeup: [docs/deployment.md](docs/deployment.md).
 
-> **On the AI providers:** every AI capability (sentiment, embeddings, theme labeling,
-> reply drafts) sits behind an adapter interface. The deployed demo intentionally runs the
-> deterministic mock adapters — zero API keys, zero per-request cost, fully reproducible
-> results for graders. Switching to real Claude (Haiku for batched sentiment, Sonnet for
-> theme summaries and replies) is configuration, not code: set `LLM_PROVIDER=anthropic`
-> and provide `ANTHROPIC_API_KEY`. The real adapter ships in
-> [backend/app/integrations/llm/anthropic.py](backend/app/integrations/llm/anthropic.py).
+## AI providers: a deliberate two-mode design
+
+Every AI capability — sentiment scoring, embeddings, theme labeling, reply drafting — sits
+behind an adapter interface ([backend/app/integrations/](backend/app/integrations/)). Two
+interchangeable implementations ship:
+
+| | Mock adapters (deployed default) | Real Claude |
+|---|---|---|
+| Cost / keys | $0, no API key | metered, needs `ANTHROPIC_API_KEY` |
+| Output | deterministic — same input, same result | model-generated |
+| Used for | the public demo, CI, reproducible grading | production-grade analysis |
+| Models | — | Haiku 4.5 (batched sentiment, structured output), Sonnet 5 (theme summaries, replies) |
+
+The live demo runs the **mock** adapters on purpose: anyone can click through it at zero
+cost and get identical results every time, which is what you want for a shared demo URL and
+for a test suite that must not flake. Switching is **configuration, not code** — the
+`anthropic` SDK is already baked into the production image, so it takes one command:
+
+```bash
+gcloud run services update sellersense --region us-central1 \
+  --set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest,DATABASE_URL=database-url:latest,JWT_SECRET=jwt-secret:latest \
+  --set-env-vars LLM_PROVIDER=anthropic,EMBEDDINGS_PROVIDER=mock
+```
+
+### Verified with real Claude
+
+The real path has been run end-to-end on the deployed service — same 50-review CSV, same
+pipeline, only the adapter swapped. Real Claude analyzed all 50 reviews in ~30 seconds and
+produced measurably sharper analysis:
+
+![Dashboard powered by real Claude](docs/images/real-claude-themes.png)
+
+| | Mock adapter | Real Claude (Sonnet 5) |
+|---|---|---|
+| Theme label | "Packaging damage" | "Damaged packaging on arrival" |
+| Theme summary | *"Customers frequently mention box, arrived, machine. Recurring complaint driver."* | *"A high volume of reviews report crushed, dented, or torn boxes leading to damaged or cracked units on arrival, sometimes on repeat orders; while support/replacements are praised when needed, packaging quality is a recurring and significant pain point."* |
+| Complaint themes found | 2 | **3** — correctly caught the battery-drain cluster the keyword heuristic mislabeled as neutral |
+| Net sentiment | +15% | +8% (harsher, more nuanced on 2-star reviews) |
+| Reply drafts | template keyed on theme | written to the specific review — cites the opened box *and* the missing manual, offers a matching remedy |
+
+That last row of the mock column is the honest tradeoff: the deterministic adapters are
+keyword-driven, so they occasionally mislabel a mixed cluster. Real Claude fixes it. Both
+are one env var apart.
 
 Monorepo:
 
