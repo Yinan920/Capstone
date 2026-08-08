@@ -1,5 +1,6 @@
 import { Crown, Sparkles } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { useAppStore } from '@/store/appStore';
 import { USE_MOCKS } from '@/lib/config';
 import Button from './Button';
@@ -43,11 +44,16 @@ export default function PremiumGate({
               <p className="mt-3 text-xs text-ink/40">Demo: switch the plan toggle to preview instantly.</p>
             </>
           ) : (
-            <p className="mt-4 text-xs text-ink/45">
-              Your account is on the Free plan — the API enforces this with a real 402. Premium
-              checkout ships in a later milestone; for now, sign in with a Premium account to
-              preview these panels.
-            </p>
+            <>
+              <Link to="/app/upgrade">
+                <Button variant="primary" className="mt-5">
+                  <Sparkles className="h-4 w-4" /> Upgrade to Premium
+                </Button>
+              </Link>
+              <p className="mt-3 text-xs text-ink/40">
+                Your account is on the Free plan — the API enforces this with a real 402.
+              </p>
+            </>
           )}
         </div>
       </div>

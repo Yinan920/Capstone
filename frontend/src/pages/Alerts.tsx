@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Bell, Settings2, Zap } from 'lucide-react';
 import { getAlerts } from '@/lib/api';
 import type { FeedbackAlert } from '@/lib/types';
 import Button from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import PageHeader, { Loading } from '@/components/ui/PageHeader';
 import PremiumGate from '@/components/ui/PremiumGate';
 import AlertCard from '@/components/alerts/AlertCard';
@@ -60,6 +62,18 @@ export default function Alerts() {
       >
         {isLoading ? (
           <Loading label="Checking alert rules…" />
+        ) : alerts.length === 0 ? (
+          <Card className="py-16 text-center">
+            <Bell className="mx-auto h-12 w-12 text-ink/20" />
+            <h2 className="mt-4 text-xl font-extrabold tracking-tight text-ink">No alerts yet</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-ink/55">
+              The rule engine runs after every analysis and raises an alert when a complaint theme
+              crosses 15% of your reviews. Upload a dataset to start monitoring.
+            </p>
+            <Link to="/app/upload" className="mt-6 inline-block">
+              <Button size="lg">Upload reviews</Button>
+            </Link>
+          </Card>
         ) : (
           <>
             <div className="mb-4 flex items-center gap-2 rounded-2xl border border-ink/[0.07] bg-white px-4 py-3 text-sm text-ink/60">

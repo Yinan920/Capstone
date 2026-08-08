@@ -74,8 +74,11 @@ export default function Upload() {
     if (phase.kind !== 'processing') return;
     if (phase.job.status === 'done') {
       setDatasetId(phase.dataset.id);
-      queryClient.invalidateQueries({ queryKey: ['datasets'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      // A finished analysis changes every derived view — the dashboard, but
+      // also alerts (the rule engine just ran) and competitor benchmarking
+      // (which scores against this dataset). Invalidate all of them or those
+      // pages serve stale cache until it expires.
+      queryClient.invalidateQueries();
       setPhase({ kind: 'done', dataset: phase.dataset });
       return;
     }

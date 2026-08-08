@@ -115,18 +115,20 @@ export default function AppShell() {
                 <span className="hidden text-xs font-medium text-ink/45 sm:inline">Demo plan</span>
                 <TierToggle />
               </>
-            ) : (
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold',
-                  tier === 'premium'
-                    ? 'bg-brand-grad text-white'
-                    : 'border border-ink/10 bg-white text-ink/60',
-                )}
-              >
-                {tier === 'premium' ? <Crown className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-                {tier === 'premium' ? 'Premium' : 'Free plan'}
+            ) : tier === 'premium' ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-grad px-3 py-1.5 text-sm font-semibold text-white">
+                <Crown className="h-3.5 w-3.5" /> Premium
               </span>
+            ) : (
+              <Link
+                to="/app/upgrade"
+                className="inline-flex items-center gap-1.5 rounded-full border border-ink/10 bg-white px-3 py-1.5 text-sm font-semibold text-ink/60 transition-colors hover:border-brand-300 hover:text-brand-600"
+              >
+                <Lock className="h-3.5 w-3.5" /> Free plan
+                <span className="ml-1 rounded-full bg-brand-grad px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                  Upgrade
+                </span>
+              </Link>
             )}
           </div>
         </header>

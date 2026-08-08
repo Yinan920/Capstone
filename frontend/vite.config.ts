@@ -17,5 +17,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     globals: true,
+    // Pin mock mode for tests so the suite is deterministic regardless of a
+    // developer's .env.local (which may point the app at a real backend).
+    // Real-mode API tests opt out per-file with vi.stubEnv.
+    env: { VITE_USE_MOCKS: 'true' },
   },
 });

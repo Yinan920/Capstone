@@ -117,7 +117,9 @@ function HeroPreview() {
   const bars = [62, 71, 55, 78, 66, 84, 73];
   return (
     <div className="relative">
-      <div className="animate-float rounded-3xl border border-white/10 bg-white p-5 text-ink shadow-2xl">
+      {/* pb leaves a clear band at the card's bottom edge so the floating alert
+          toast below never covers the last theme row */}
+      <div className="animate-float rounded-3xl border border-white/10 bg-white p-5 pb-16 text-ink shadow-2xl">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-ink/40">Net sentiment</p>
@@ -148,7 +150,7 @@ function HeroPreview() {
           ))}
         </div>
       </div>
-      <div className="absolute -bottom-5 -left-5 animate-float rounded-2xl border border-white/10 bg-white p-3 text-ink shadow-xl [animation-delay:1s]">
+      <div className="absolute -bottom-6 -left-4 animate-float rounded-2xl border border-ink/[0.08] bg-white p-3 text-ink shadow-xl [animation-delay:1s]">
         <div className="flex items-center gap-2">
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-negative/10 text-negative">
             <Bell className="h-4 w-4" />

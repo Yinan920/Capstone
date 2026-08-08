@@ -104,6 +104,15 @@ export interface UploadInput {
   source: Channel;
 }
 
+export interface Plan {
+  id: Tier;
+  name: string;
+  priceMonthly: number;
+  reviewCap: number;
+  features: string[];
+  locked: string[];
+}
+
 /** Everything the insights dashboard needs for one dataset. */
 export interface DashboardData {
   dataset: Dataset;

@@ -17,6 +17,7 @@ import type {
   DashboardData,
   Dataset,
   FeedbackAlert,
+  Plan,
   ReplyDraft,
   Review,
   UploadInput,
@@ -27,6 +28,7 @@ import {
   MOCK_ALERTS,
   MOCK_COMPETITORS,
   MOCK_DATASETS,
+  MOCK_PLANS,
   MOCK_USER,
   getMockDashboard,
   getMockReplyDraft,
@@ -115,6 +117,26 @@ export async function uploadDataset(input: UploadInput): Promise<UploadResponse>
 export async function getJob(jobId: string): Promise<AnalysisJob> {
   if (USE_MOCKS) return mockJobPoll(jobId);
   return http<AnalysisJob>(`/jobs/${jobId}`);
+}
+
+/* ---- Billing ---- */
+
+/** GET /billing/plans */
+export async function getPlans(): Promise<{ plans: Plan[] }> {
+  if (USE_MOCKS) return delay({ plans: MOCK_PLANS }, MOCK_LATENCY);
+  return http<{ plans: Plan[] }>('/billing/plans');
+}
+
+/** POST /billing/upgrade — activates Premium (payment stubbed, see backend) */
+export async function upgradePlan(): Promise<User> {
+  if (USE_MOCKS) return delay({ ...MOCK_USER, tier: 'premium' as const }, MOCK_LATENCY + 400);
+  return http<User>('/billing/upgrade', { method: 'POST' });
+}
+
+/** POST /billing/downgrade — back to Free */
+export async function downgradePlan(): Promise<User> {
+  if (USE_MOCKS) return delay({ ...MOCK_USER, tier: 'free' as const }, MOCK_LATENCY);
+  return http<User>('/billing/downgrade', { method: 'POST' });
 }
 
 /* ---- Insights ---- */

@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, Target, XCircle } from 'lucide-react';
+import { CheckCircle2, Target, UploadCloud, XCircle } from 'lucide-react';
 import { getCompetitorComparisons } from '@/lib/api';
+import Button from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
 import PageHeader, { Loading } from '@/components/ui/PageHeader';
 import PremiumGate from '@/components/ui/PremiumGate';
@@ -32,9 +34,11 @@ export default function Competitors() {
       >
         {isLoading || !data ? (
           <Loading label="Comparing competitors…" />
+        ) : data.length === 0 ? (
+          <EmptyState />
         ) : (
           (() => {
-            const cmp = data[idx];
+            const cmp = data[Math.min(idx, data.length - 1)];
             return (
               <div>
                 {/* Competitor toggle */}
@@ -164,5 +168,27 @@ function Legend({ youName, competitorName }: { youName: string; competitorName: 
         {competitorName}
       </span>
     </div>
+  );
+}
+
+/** Benchmarking needs an analyzed dataset of your own to compare against — a
+    freshly upgraded account has none yet. */
+function EmptyState() {
+  return (
+    <Card className="py-16 text-center">
+      <UploadCloud className="mx-auto h-12 w-12 text-ink/20" />
+      <h2 className="mt-4 text-xl font-extrabold tracking-tight text-ink">
+        Upload your reviews to compare
+      </h2>
+      <p className="mx-auto mt-2 max-w-md text-sm text-ink/55">
+        Benchmarking scores your own feedback against rival listings across six dimensions — so we
+        need at least one analyzed dataset from your store first.
+      </p>
+      <Link to="/app/upload" className="mt-6 inline-block">
+        <Button size="lg">
+          <UploadCloud className="h-4 w-4" /> Upload reviews
+        </Button>
+      </Link>
+    </Card>
   );
 }

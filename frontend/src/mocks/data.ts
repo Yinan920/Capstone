@@ -10,6 +10,7 @@ import type {
   DashboardData,
   Dataset,
   FeedbackAlert,
+  Plan,
   ReplyDraft,
   Review,
   User,
@@ -552,3 +553,34 @@ export function getMockReplyDraft(review: Review): ReplyDraft {
     portalUrl: PORTAL_URLS[portal],
   };
 }
+
+/* ---- Plans (billing) ---- */
+
+export const MOCK_PLANS: Plan[] = [
+  {
+    id: 'free',
+    name: 'Free',
+    priceMonthly: 0,
+    reviewCap: 50,
+    features: [
+      'Sentiment analysis on every review',
+      'Automatic theme discovery',
+      'High-frequency complaint keywords',
+      'Review drill-through',
+    ],
+    locked: ['Smart alerts', 'Competitor benchmarking', 'AI reply drafts'],
+  },
+  {
+    id: 'premium',
+    name: 'Premium',
+    priceMonthly: 29,
+    reviewCap: 200,
+    features: [
+      'Everything in Free, up to 200 reviews per upload',
+      'Smart alerts when a complaint theme crosses threshold',
+      'Competitor benchmarking across six dimensions',
+      'AI reply drafts with seller-portal deep links',
+    ],
+    locked: [],
+  },
+];
