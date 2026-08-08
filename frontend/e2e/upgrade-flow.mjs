@@ -30,9 +30,28 @@ try {
   await p.getByText(/stripe checkout/i).waitFor();
   ok('plans and the hosted-checkout note render');
 
+  // Plans → checkout
   await p.getByRole('button', { name: /activate premium/i }).click();
-  await p.waitForURL('**/competitors', { timeout: 30000 });
-  ok('upgrade unlocked the competitor board live (no re-login)');
+  await p.waitForURL('**/checkout', { timeout: 30000 });
+  await p.getByText(/order summary/i).waitFor();
+  await p.getByText(/total due today/i).waitFor();
+  await p.screenshot({ path: `${OUT}/02-checkout.png` });
+  ok('checkout shows the order summary and total');
+
+  // Payment methods are selectable, and no card fields exist anywhere
+  await p.getByRole('radio', { name: /paypal/i }).click();
+  const inputs = await p.locator('input, textarea, select').count();
+  if (inputs !== 0) throw new Error(`checkout must collect no payment data, found ${inputs} fields`);
+  ok('payment methods selectable; zero data-collecting fields on the page');
+
+  await p.getByRole('button', { name: /complete purchase/i }).click();
+  await p.waitForURL('**/upgrade**', { timeout: 30000 });
+  await p.getByText(/you’re on premium|you're on premium/i).first().waitFor();
+  await p.screenshot({ path: `${OUT}/03-upgraded.png` });
+  ok('purchase completed → account is on Premium');
+
+  await p.getByRole('navigation').getByRole('link', { name: /competitors/i }).click();
+  ok('premium navigation reachable (gate removed)');
 
   // Tier badge flipped and the gate is gone
   await p.getByText('Premium', { exact: true }).first().waitFor();
@@ -40,7 +59,7 @@ try {
 
   // A freshly upgraded account has no data yet — must show guidance, not a crash
   await p.getByText(/upload your reviews to compare/i).waitFor();
-  await p.screenshot({ path: `${OUT}/02-premium-unlocked-empty.png` });
+  await p.screenshot({ path: `${OUT}/04-premium-empty-state.png` });
   ok('empty benchmarking state renders instead of breaking');
 
   // Give it data, then the real comparison should appear
@@ -54,7 +73,7 @@ try {
 
   await p.getByRole('navigation').getByRole('link', { name: /competitors/i }).click();
   await p.getByText(/wanderbean mini|pocketpress pro/i).first().waitFor({ timeout: 30000 });
-  await p.screenshot({ path: `${OUT}/03-premium-competitors.png` });
+  await p.screenshot({ path: `${OUT}/05-premium-competitors.png` });
   ok('real competitor comparison renders for the upgraded account');
 
   console.log('\n🎉 UPGRADE FLOW PASSED');

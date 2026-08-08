@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, Check, Crown, Loader2, Lock, ShieldCheck } from 'lucide-react';
-import { ApiError, downgradePlan, getPlans, upgradePlan } from '@/lib/api';
+import { ArrowRight, BadgeCheck, Check, Crown, Loader2, Lock, ShieldCheck } from 'lucide-react';
+import { ApiError, downgradePlan, getPlans } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import PageHeader, { Loading } from '@/components/ui/PageHeader';
@@ -20,18 +20,19 @@ export default function Upgrade() {
   const authUser = useAuthStore((s) => s.user);
   const [error, setError] = useState<string | null>(null);
 
+  const [params] = useSearchParams();
+  const justUpgraded = params.get('welcome') === '1' && tier === 'premium';
+
   const { data, isLoading } = useQuery({ queryKey: ['plans'], queryFn: getPlans });
 
+  // Upgrading goes through the checkout page; only downgrade acts directly here.
   const mutation = useMutation({
-    mutationFn: (target: 'premium' | 'free') =>
-      target === 'premium' ? upgradePlan() : downgradePlan(),
+    mutationFn: downgradePlan,
     onSuccess: (user) => {
       setError(null);
       setTier(user.tier);
       if (authUser) useAuthStore.setState({ user });
-      // Premium panels read from the server — refetch everything gated.
       queryClient.invalidateQueries();
-      if (user.tier === 'premium') navigate('/app/competitors');
     },
     onError: (err) =>
       setError(err instanceof ApiError ? err.message : 'Could not reach the server.'),
@@ -51,6 +52,16 @@ export default function Upgrade() {
         }
       />
 
+      {justUpgraded && (
+        <div className="mx-auto mb-5 flex max-w-4xl items-center gap-3 rounded-2xl border border-positive/25 bg-positive/[0.07] p-4">
+          <BadgeCheck className="h-5 w-5 shrink-0 text-positive" />
+          <p className="text-sm text-ink/70">
+            <strong className="text-ink">You’re on Premium.</strong> Alerts, competitor
+            benchmarking and reply drafts are unlocked — they’re in the sidebar now.
+          </p>
+        </div>
+      )}
+
       <div className="mx-auto grid max-w-4xl gap-4 lg:grid-cols-2">
         {data.plans.map((plan) => (
           <PlanCard
@@ -58,7 +69,9 @@ export default function Upgrade() {
             plan={plan}
             current={tier === plan.id}
             busy={mutation.isPending}
-            onSelect={() => mutation.mutate(plan.id === 'premium' ? 'premium' : 'free')}
+            onSelect={() =>
+              plan.id === 'premium' ? navigate('/app/checkout') : mutation.mutate()
+            }
           />
         ))}
       </div>

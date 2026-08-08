@@ -7,6 +7,7 @@ import RequireAuth from './components/auth/RequireAuth';
 import Dashboard from './pages/Dashboard';
 import Upload from './pages/Upload';
 import Upgrade from './pages/Upgrade';
+import Checkout from './pages/Checkout';
 import Competitors from './pages/Competitors';
 import Alerts from './pages/Alerts';
 import ReplyStudio from './pages/ReplyStudio';
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="alerts" element={<Alerts />} />
         <Route path="reply" element={<ReplyStudio />} />
         <Route path="upgrade" element={<Upgrade />} />
+        <Route path="checkout" element={<Checkout />} />
       </Route>
     </Routes>
   );

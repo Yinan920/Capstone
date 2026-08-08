@@ -25,7 +25,11 @@ export default function PremiumGate({
   if (tier === 'premium') return <>{children}</>;
 
   return (
-    <div className="relative overflow-hidden rounded-3xl">
+    // The overlay is absolutely positioned, so the container's height comes from
+    // the blurred children behind it. For a free user those children are an
+    // empty/loading state (the premium API returns 402), which is shorter than
+    // the upgrade card — without a floor, overflow-hidden clips the card.
+    <div className="relative min-h-[26rem] overflow-hidden rounded-3xl">
       <div className="pointer-events-none select-none blur-[6px] saturate-[0.7] opacity-60" aria-hidden>
         {children}
       </div>
