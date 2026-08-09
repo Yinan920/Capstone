@@ -23,9 +23,16 @@ logger = logging.getLogger(__name__)
 
 
 def _pick_k(n_reviews: int) -> int:
+    """Cluster count, scaled to the dataset.
+
+    A fixed ceiling collapses larger uploads: 150 reviews forced into 5 clusters
+    puts ~30 mixed reviews in each, so themes come back as "great coffee, but
+    slow shipping" instead of separating. sqrt(n/2) is the usual heuristic; the
+    cap of 8 keeps the dashboard readable rather than being a modelling limit.
+    """
     if n_reviews < 8:
         return min(2, n_reviews)
-    return min(5, max(2, n_reviews // 10))
+    return min(8, max(3, round((n_reviews / 2) ** 0.5)))
 
 
 def _severity(share: float, threshold: float) -> str | None:
