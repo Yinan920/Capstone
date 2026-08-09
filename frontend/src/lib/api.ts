@@ -113,6 +113,22 @@ export async function uploadDataset(input: UploadInput): Promise<UploadResponse>
   return http<UploadResponse>('/datasets/upload', { method: 'POST', body: form });
 }
 
+/** DELETE /datasets/:id — removes the dataset and everything derived from it */
+export async function deleteDataset(datasetId: string): Promise<void> {
+  if (USE_MOCKS) {
+    const i = mockUploadedDatasets.findIndex((d) => d.id === datasetId);
+    if (i >= 0) mockUploadedDatasets.splice(i, 1);
+    await delay(null, MOCK_LATENCY);
+    return;
+  }
+  const token = getAuthToken();
+  const res = await fetch(`${API_BASE_URL}/datasets/${datasetId}`, {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new ApiError(res.status, `Could not delete this dataset (${res.status})`);
+}
+
 /** GET /jobs/:id */
 export async function getJob(jobId: string): Promise<AnalysisJob> {
   if (USE_MOCKS) return mockJobPoll(jobId);

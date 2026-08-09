@@ -14,6 +14,7 @@ import ComplaintThemesBar from '@/components/charts/ComplaintThemesBar';
 import ThemeList from '@/components/dashboard/ThemeList';
 import KeywordChips from '@/components/dashboard/KeywordChips';
 import ReviewDrill from '@/components/dashboard/ReviewDrill';
+import DeleteDataset from '@/components/dashboard/DeleteDataset';
 import { formatPct, formatSignedPct, sentimentTone } from '@/lib/utils';
 
 export default function Dashboard() {
@@ -78,11 +79,14 @@ export default function Dashboard() {
         title={dataset.productName}
         subtitle={`AI analysis of ${kpis.reviewsAnalyzed} customer reviews from ${dataset.name}.`}
         action={
-          <Link to="/app/reply">
-            <Button variant="dark">
-              <MessageSquareReply className="h-4 w-4" /> Draft replies
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <DeleteDataset dataset={dataset} />
+            <Link to="/app/reply">
+              <Button variant="dark">
+                <MessageSquareReply className="h-4 w-4" /> Draft replies
+              </Button>
+            </Link>
+          </div>
         }
       />
 

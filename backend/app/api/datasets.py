@@ -81,6 +81,21 @@ async def get_dataset(
     return DatasetOut.model_validate(dataset)
 
 
+@router.delete("/{dataset_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_dataset(
+    dataset_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+) -> None:
+    """Delete a dataset and everything derived from it.
+
+    The FK cascades take care of reviews, the analysis job, theme clusters,
+    keyword stats, alerts and any reply drafts — so removing the parent row is
+    enough, and no orphans survive.
+    """
+    dataset = await _owned_dataset(dataset_id, user, db)
+    await db.delete(dataset)
+    await db.commit()
+
+
 async def _owned_dataset(dataset_id: str, user: User, db: AsyncSession) -> Dataset:
     import uuid
 
