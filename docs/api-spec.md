@@ -444,6 +444,103 @@ Generate (via LLM adapter — mock by default, Claude when a key is configured) 
 
 ---
 
+## 13. `GET /api/billing/plans`
+
+Plan catalogue. Served from the API so pricing and limits have a single source of truth — the caps returned here are the same values the upload endpoint enforces.
+
+**Input:** none (public).
+
+**Output — 200:**
+```json
+{
+  "plans": [
+    {
+      "id": "free",
+      "name": "Free",
+      "priceMonthly": 0,
+      "reviewCap": 50,
+      "features": [
+        "Sentiment analysis on every review",
+        "Automatic theme discovery",
+        "High-frequency complaint keywords",
+        "Review drill-through"
+      ],
+      "locked": ["Smart alerts", "Competitor benchmarking", "AI reply drafts"]
+    },
+    {
+      "id": "premium",
+      "name": "Premium",
+      "priceMonthly": 29,
+      "reviewCap": 200,
+      "features": [
+        "Everything in Free, up to 200 reviews per upload",
+        "Smart alerts when a complaint theme crosses threshold",
+        "Competitor benchmarking across six dimensions",
+        "AI reply drafts with seller-portal deep links"
+      ],
+      "locked": []
+    }
+  ]
+}
+```
+
+---
+
+## 14. `POST /api/billing/upgrade`
+
+Activate Premium for the authenticated account. **Payment is deliberately stubbed:** this endpoint performs the tier transition — the part the application owns — and takes no card details. The production design is Stripe Checkout, where the client is redirected to a Stripe-hosted page and Stripe calls a webhook that flips the tier; card data never reaches this server, which keeps the application out of PCI DSS scope. This handler is where that webhook's logic would live.
+
+**Input:** bearer token; empty body.
+
+**Output — 200:** the updated user.
+```json
+{
+  "id": "0513c98f-5a79-45f6-aea3-2a862b59d90c",
+  "email": "seller@example.com",
+  "name": "Sam Rivera",
+  "tier": "premium",
+  "createdAt": "2026-08-24T22:05:39.520403Z"
+}
+```
+
+Premium endpoints (10, 11, 12) answer `200` for the **same** bearer token immediately — no re-authentication.
+
+**Errors:**
+- 409 — `{ "detail": "Your account is already on Premium" }`
+- 401 — `{ "detail": "Not authenticated" }`
+
+---
+
+## 15. `POST /api/billing/downgrade`
+
+Return to the Free plan. Exists so the tier transition is demonstrable in both directions; in production this is a subscription cancellation.
+
+**Input:** bearer token; empty body.
+
+**Output — 200:** the updated user, with `"tier": "free"`. Premium endpoints return `402` again immediately.
+
+**Errors:**
+- 409 — `{ "detail": "Your account is already on Free" }`
+- 401 — `{ "detail": "Not authenticated" }`
+
+---
+
+## 16. `DELETE /api/datasets/{datasetId}`
+
+Delete a dataset and everything derived from it. Foreign-key cascades remove the reviews, the analysis job, theme clusters, keyword stats, alerts and reply drafts, so no orphan rows survive.
+
+**Input:** bearer token; dataset id in the path.
+
+**Output — 204:** empty body.
+
+**Errors:**
+- 404 — `{ "detail": "Dataset not found" }` — returned both for an unknown id and for a dataset owned by another user, so the response never confirms that an id exists.
+- 401 — `{ "detail": "Not authenticated" }`
+
+> The UI makes this two-step on purpose: the first click only arms the action, because deleting discards an analysis that cost real time and real model calls.
+
+---
+
 ## API → screen coverage map
 
 | Frontend surface | APIs used |
@@ -455,4 +552,6 @@ Generate (via LLM adapter — mock by default, Claude when a key is configured) 
 | Competitor board (premium) | 10 |
 | Smart alerts (premium) | 11 |
 | Reply studio (premium) | 12 |
+| Plans / upgrade / checkout | 13, 14, 15 |
+| Delete dataset (dashboard) | 16 |
 | Ops/monitoring | 1 |

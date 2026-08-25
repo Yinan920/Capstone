@@ -6,6 +6,11 @@
 .claude/
 .vscode/
 docs/
+# Firebase Hosting config — it fronts Cloud Run, it isn't part of the image.
+firebase.json
+.firebaserc
+firebase-public/
+.firebase/
 backend/.venv/
 backend/.pytest_cache/
 backend/**/__pycache__/

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import AuthLayout, { Field, FormError } from '@/components/auth/AuthLayout';
 import Button from '@/components/ui/Button';
@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore';
 
 export default function Register() {
   const navigate = useNavigate();
+  const location = useLocation();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -27,7 +28,10 @@ export default function Register() {
     try {
       const { token, user } = await register(email, name, password);
       setAuth(token, user);
-      navigate('/app', { replace: true });
+      // Honour where the visitor was headed — someone who clicked "Go Premium"
+      // on the homepage should land on the plans page, not the dashboard.
+      const from = (location.state as { from?: string } | null)?.from;
+      navigate(from ?? '/app', { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not reach the server. Is the backend running?');
     } finally {
@@ -43,7 +47,7 @@ export default function Register() {
       footer={
         <>
           Already have an account?{' '}
-          <Link to="/login" className="font-semibold text-brand-500 hover:text-brand-600">
+          <Link to="/login" state={location.state} className="font-semibold text-brand-500 hover:text-brand-600">
             Sign in
           </Link>
         </>

@@ -41,7 +41,7 @@ export default function Login() {
       footer={
         <>
           New here?{' '}
-          <Link to="/register" className="font-semibold text-brand-500 hover:text-brand-600">
+          <Link to="/register" state={location.state} className="font-semibold text-brand-500 hover:text-brand-600">
             Create a free account
           </Link>
         </>

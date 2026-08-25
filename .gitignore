@@ -56,6 +56,10 @@ docs/video-script.md
 docs/video-script-backend.md
 docs/class-demo-runbook.md
 
+# --- Firebase CLI local cache (config itself is tracked) ---
+.firebase/
+firebase-debug.log*
+
 # --- Logs & scratch ---
 *.log
 .cache/
@@ -71,3 +75,6 @@ docs/SellerSense-Capstone.pptx
 docs/deck-preview.pdf
 docs/~$*
 docs/milestone3-video-script.md
+docs/presentation-feedback-action-plan.md
+docs/build_architecture_slide.py
+docs/SellerSense-Architecture.pptx

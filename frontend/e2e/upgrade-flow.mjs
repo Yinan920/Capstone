@@ -1,7 +1,7 @@
 /** Verifies the free → premium conversion loop on the deployed service. */
 import { chromium } from 'playwright';
 import fs from 'node:fs';
-const BASE = process.env.BASE ?? 'https://sellersense-414647520736.us-central1.run.app';
+const BASE = process.env.BASE ?? 'https://sellersense-ai.web.app';
 const OUT = 'e2e/shots-upgrade';
 fs.mkdirSync(OUT, { recursive: true });
 const ok = (m) => console.log('✅ ' + m);

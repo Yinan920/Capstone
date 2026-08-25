@@ -1,0 +1,16 @@
+{
+  "hosting": {
+    "site": "sellersense-ai",
+    "public": "firebase-public",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "sellersense",
+          "region": "us-central1"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 780" width="1280" height="780" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <marker id="dep" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+    <marker id="depSoft" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="780" fill="#ffffff"/>
+
+  <text x="40" y="48" font-size="24" font-weight="700" fill="#0f172a">Service Dependency Map — and the blast radius of each failure</text>
+  <text x="40" y="74" font-size="13.5" fill="#475569">Hard dependency = the feature stops. Soft dependency = the feature degrades. Read with §2 Monitoring and §3 Incident playbooks.</text>
+
+  <!-- Request chain -->
+  <rect x="40" y="104" width="196" height="66" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="58" y="132" font-size="13.5" font-weight="700" fill="#312e81">Browser (SPA)</text>
+  <text x="58" y="153" font-size="11" fill="#4338ca">React bundle + JWT</text>
+
+  <line x1="236" y1="137" x2="292" y2="137" stroke="#334155" stroke-width="2" marker-end="url(#dep)"/>
+
+  <rect x="296" y="104" width="196" height="66" rx="10" fill="#fff7ed" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="314" y="132" font-size="13.5" font-weight="700" fill="#7c2d12">Firebase Hosting</text>
+  <text x="314" y="153" font-size="11" fill="#9a3412">CDN edge · TLS · rewrite</text>
+
+  <line x1="492" y1="137" x2="548" y2="137" stroke="#334155" stroke-width="2" marker-end="url(#dep)"/>
+
+  <rect x="552" y="104" width="196" height="66" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+  <text x="570" y="132" font-size="13.5" font-weight="700" fill="#1e3a8a">Cloud Run service</text>
+  <text x="570" y="153" font-size="11" fill="#1d4ed8">FastAPI + SPA + worker</text>
+
+  <line x1="748" y1="137" x2="804" y2="137" stroke="#334155" stroke-width="2" marker-end="url(#dep)"/>
+
+  <rect x="808" y="104" width="196" height="66" rx="10" fill="#ecfdf5" stroke="#059669" stroke-width="1.8"/>
+  <text x="826" y="132" font-size="13.5" font-weight="700" fill="#065f46">Cloud SQL</text>
+  <text x="826" y="153" font-size="11" fill="#047857">Postgres 16 + pgvector</text>
+
+  <!-- side dependencies of Cloud Run -->
+  <path d="M 650 170 L 650 214 L 470 214 L 470 244" fill="none" stroke="#334155" stroke-width="1.8" marker-end="url(#dep)"/>
+  <path d="M 650 170 L 650 214 L 830 214 L 830 244" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#depSoft)"/>
+  <path d="M 1080 244 L 1080 137 L 1008 137" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#depSoft)"/>
+
+  <rect x="372" y="244" width="196" height="62" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="1.4"/>
+  <text x="390" y="270" font-size="13" font-weight="700" fill="#7f1d1d">Secret Manager</text>
+  <text x="390" y="291" font-size="10.5" fill="#b91c1c">read once at instance start</text>
+
+  <rect x="732" y="244" width="196" height="62" rx="10" fill="#faf5ff" stroke="#7c3aed" stroke-width="1.4"/>
+  <text x="750" y="270" font-size="13" font-weight="700" fill="#4c1d95">Anthropic Claude API</text>
+  <text x="750" y="291" font-size="10.5" fill="#6d28d9">analysis stages 1 and 4</text>
+
+  <rect x="982" y="244" width="196" height="62" rx="10" fill="#f0f9ff" stroke="#0284c7" stroke-width="1.4"/>
+  <text x="1000" y="270" font-size="13" font-weight="700" fill="#075985">Cloud Run Jobs</text>
+  <text x="1000" y="291" font-size="10.5" fill="#0369a1">migrate · seed · reset</text>
+
+  <text x="1014" y="160" font-size="10.5" fill="#64748b">migrate / seed / reset</text>
+  <text x="1014" y="175" font-size="10.5" fill="#64748b">write to the database</text>
+
+  <text x="40" y="342" font-size="12.5" font-weight="700" fill="#475569" letter-spacing="1.1">IF IT FAILS — SYMPTOM, HOW YOU SEE IT, HOW YOU RECOVER</text>
+
+  <!-- Blast-radius cards -->
+  <rect x="40" y="358" width="236" height="386" rx="10" fill="#fff7ed" stroke="#f59e0b" stroke-width="1.3"/>
+  <text x="58" y="384" font-size="13" font-weight="700" fill="#7c2d12">Firebase Hosting</text>
+  <text x="58" y="404" font-size="10.5" font-weight="700" fill="#9a3412">HARD — public URL only</text>
+  <text x="58" y="430" font-size="10.5" font-weight="700" fill="#7c2d12">Symptom</text>
+  <text x="58" y="448" font-size="10.5" fill="#9a3412">web.app URL fails; the</text>
+  <text x="58" y="464" font-size="10.5" fill="#9a3412">*.run.app origin still works</text>
+  <text x="58" y="490" font-size="10.5" font-weight="700" fill="#7c2d12">Detect</text>
+  <text x="58" y="508" font-size="10.5" fill="#9a3412">curl the web.app URL and</text>
+  <text x="58" y="524" font-size="10.5" fill="#9a3412">the run.app URL — compare</text>
+  <text x="58" y="550" font-size="10.5" font-weight="700" fill="#7c2d12">Recover</text>
+  <text x="58" y="568" font-size="10.5" fill="#9a3412">firebase deploy --only</text>
+  <text x="58" y="584" font-size="10.5" fill="#9a3412">hosting; check the rewrite</text>
+  <text x="58" y="600" font-size="10.5" fill="#9a3412">still names serviceId</text>
+  <text x="58" y="616" font-size="10.5" fill="#9a3412">“sellersense” in the same</text>
+  <text x="58" y="632" font-size="10.5" fill="#9a3412">GCP project</text>
+  <text x="58" y="662" font-size="10.5" font-weight="700" fill="#7c2d12">Workaround</text>
+  <text x="58" y="680" font-size="10.5" fill="#9a3412">Hand out the Cloud Run</text>
+  <text x="58" y="696" font-size="10.5" fill="#9a3412">URL — the app is complete</text>
+  <text x="58" y="712" font-size="10.5" fill="#9a3412">there; only the short name</text>
+  <text x="58" y="728" font-size="10.5" fill="#9a3412">is lost</text>
+
+  <rect x="288" y="358" width="236" height="386" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="1.3"/>
+  <text x="306" y="384" font-size="13" font-weight="700" fill="#1e3a8a">Cloud Run service</text>
+  <text x="306" y="404" font-size="10.5" font-weight="700" fill="#1d4ed8">HARD — the whole product</text>
+  <text x="306" y="430" font-size="10.5" font-weight="700" fill="#1e3a8a">Symptom</text>
+  <text x="306" y="448" font-size="10.5" fill="#1d4ed8">5xx or timeout on every</text>
+  <text x="306" y="464" font-size="10.5" fill="#1d4ed8">page and every API call</text>
+  <text x="306" y="490" font-size="10.5" font-weight="700" fill="#1e3a8a">Detect</text>
+  <text x="306" y="508" font-size="10.5" fill="#1d4ed8">GET /api/health fails or</text>
+  <text x="306" y="524" font-size="10.5" fill="#1d4ed8">never answers; container</text>
+  <text x="306" y="540" font-size="10.5" fill="#1d4ed8">logs show the traceback</text>
+  <text x="306" y="566" font-size="10.5" font-weight="700" fill="#1e3a8a">Recover</text>
+  <text x="306" y="584" font-size="10.5" fill="#1d4ed8">Roll traffic back to the last</text>
+  <text x="306" y="600" font-size="10.5" fill="#1d4ed8">good revision (seconds),</text>
+  <text x="306" y="616" font-size="10.5" fill="#1d4ed8">then debug the bad image</text>
+  <text x="306" y="646" font-size="10.5" font-weight="700" fill="#1e3a8a">Note</text>
+  <text x="306" y="664" font-size="10.5" fill="#1d4ed8">Analyses running in that</text>
+  <text x="306" y="680" font-size="10.5" fill="#1d4ed8">instance die with it — the</text>
+  <text x="306" y="696" font-size="10.5" fill="#1d4ed8">job row stays “running”</text>
+  <text x="306" y="712" font-size="10.5" fill="#1d4ed8">and the upload must be</text>
+  <text x="306" y="728" font-size="10.5" fill="#1d4ed8">repeated</text>
+
+  <rect x="536" y="358" width="236" height="386" rx="10" fill="#ecfdf5" stroke="#059669" stroke-width="1.3"/>
+  <text x="554" y="384" font-size="13" font-weight="700" fill="#065f46">Cloud SQL</text>
+  <text x="554" y="404" font-size="10.5" font-weight="700" fill="#047857">HARD — all data features</text>
+  <text x="554" y="430" font-size="10.5" font-weight="700" fill="#065f46">Symptom</text>
+  <text x="554" y="448" font-size="10.5" fill="#047857">Pages load, every data call</text>
+  <text x="554" y="464" font-size="10.5" fill="#047857">fails; login impossible</text>
+  <text x="554" y="490" font-size="10.5" font-weight="700" fill="#065f46">Detect</text>
+  <text x="554" y="508" font-size="10.5" fill="#047857">/api/health returns</text>
+  <text x="554" y="524" font-size="10.5" fill="#047857">{"status":"ok",</text>
+  <text x="554" y="540" font-size="10.5" fill="#047857"> "database":"down"}</text>
+  <text x="554" y="566" font-size="10.5" font-weight="700" fill="#065f46">Recover</text>
+  <text x="554" y="584" font-size="10.5" fill="#047857">Most common cause here:</text>
+  <text x="554" y="600" font-size="10.5" fill="#047857">the instance was stopped to</text>
+  <text x="554" y="616" font-size="10.5" fill="#047857">save cost — patch the</text>
+  <text x="554" y="632" font-size="10.5" fill="#047857">activation policy to ALWAYS</text>
+  <text x="554" y="648" font-size="10.5" fill="#047857">(1–2 min to accept traffic)</text>
+  <text x="554" y="678" font-size="10.5" font-weight="700" fill="#065f46">Then check</text>
+  <text x="554" y="696" font-size="10.5" fill="#047857">IAM role on the runtime SA,</text>
+  <text x="554" y="712" font-size="10.5" fill="#047857">the connector attachment,</text>
+  <text x="554" y="728" font-size="10.5" fill="#047857">and instance CPU / storage</text>
+
+  <rect x="784" y="358" width="236" height="386" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="1.3"/>
+  <text x="802" y="384" font-size="13" font-weight="700" fill="#7f1d1d">Secret Manager</text>
+  <text x="802" y="404" font-size="10.5" font-weight="700" fill="#b91c1c">HARD — but only at start</text>
+  <text x="802" y="430" font-size="10.5" font-weight="700" fill="#7f1d1d">Symptom</text>
+  <text x="802" y="448" font-size="10.5" fill="#b91c1c">Running instances are fine;</text>
+  <text x="802" y="464" font-size="10.5" fill="#b91c1c">new ones refuse to start,</text>
+  <text x="802" y="480" font-size="10.5" fill="#b91c1c">so a deploy or scale-up</text>
+  <text x="802" y="496" font-size="10.5" fill="#b91c1c">fails, often silently</text>
+  <text x="802" y="522" font-size="10.5" font-weight="700" fill="#7f1d1d">Detect</text>
+  <text x="802" y="540" font-size="10.5" fill="#b91c1c">Revision stuck “not ready”;</text>
+  <text x="802" y="556" font-size="10.5" fill="#b91c1c">logs mention permission or</text>
+  <text x="802" y="572" font-size="10.5" fill="#b91c1c">a missing secret version</text>
+  <text x="802" y="598" font-size="10.5" font-weight="700" fill="#7f1d1d">Recover</text>
+  <text x="802" y="616" font-size="10.5" fill="#b91c1c">Confirm the runtime SA has</text>
+  <text x="802" y="632" font-size="10.5" fill="#b91c1c">secretmanager.secretAccessor</text>
+  <text x="802" y="648" font-size="10.5" fill="#b91c1c">and that :latest exists;</text>
+  <text x="802" y="664" font-size="10.5" fill="#b91c1c">re-deploy. Meanwhile keep</text>
+  <text x="802" y="680" font-size="10.5" fill="#b91c1c">serving the old revision</text>
+  <text x="802" y="710" font-size="10.5" font-weight="700" fill="#7f1d1d">Why it bites</text>
+  <text x="802" y="728" font-size="10.5" fill="#b91c1c">Deploy “succeeds”, app dies</text>
+
+  <rect x="1032" y="358" width="208" height="386" rx="10" fill="#faf5ff" stroke="#7c3aed" stroke-width="1.3"/>
+  <text x="1050" y="384" font-size="13" font-weight="700" fill="#4c1d95">Anthropic API</text>
+  <text x="1050" y="404" font-size="10.5" font-weight="700" fill="#6d28d9">SOFT — degrade, not down</text>
+  <text x="1050" y="430" font-size="10.5" font-weight="700" fill="#4c1d95">Symptom</text>
+  <text x="1050" y="448" font-size="10.5" fill="#6d28d9">Login, dashboards and old</text>
+  <text x="1050" y="464" font-size="10.5" fill="#6d28d9">analyses keep working;</text>
+  <text x="1050" y="480" font-size="10.5" fill="#6d28d9">new uploads end as a</text>
+  <text x="1050" y="496" font-size="10.5" fill="#6d28d9">“failed” job with the</text>
+  <text x="1050" y="512" font-size="10.5" fill="#6d28d9">provider error stored</text>
+  <text x="1050" y="538" font-size="10.5" font-weight="700" fill="#4c1d95">Detect</text>
+  <text x="1050" y="556" font-size="10.5" fill="#6d28d9">GET /api/jobs/{id} returns</text>
+  <text x="1050" y="572" font-size="10.5" fill="#6d28d9">status “failed” + message</text>
+  <text x="1050" y="598" font-size="10.5" font-weight="700" fill="#4c1d95">Recover</text>
+  <text x="1050" y="616" font-size="10.5" fill="#6d28d9">Switch the service to the</text>
+  <text x="1050" y="632" font-size="10.5" fill="#6d28d9">deterministic adapters:</text>
+  <text x="1050" y="648" font-size="10.5" fill="#6d28d9">LLM_PROVIDER=mock — one</text>
+  <text x="1050" y="664" font-size="10.5" fill="#6d28d9">command, no rebuild, the</text>
+  <text x="1050" y="680" font-size="10.5" fill="#6d28d9">SDK already ships in the</text>
+  <text x="1050" y="696" font-size="10.5" fill="#6d28d9">image. Analysis quality</text>
+  <text x="1050" y="712" font-size="10.5" fill="#6d28d9">drops; the product stays</text>
+  <text x="1050" y="728" font-size="10.5" fill="#6d28d9">fully usable</text>
+</svg>

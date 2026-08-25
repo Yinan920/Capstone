@@ -4,7 +4,7 @@ AI-driven customer-feedback intelligence for small/medium e-commerce sellers:
 upload store reviews → async AI analysis (sentiment, theme clustering, complaint
 keywords, alerts) → insights dashboard, competitor benchmarking, and reply drafts.
 
-**Live demo (GCP Cloud Run + Cloud SQL):** https://sellersense-414647520736.us-central1.run.app
+**Live demo (Firebase Hosting → GCP Cloud Run + Cloud SQL):** https://sellersense-ai.web.app
 — sign in with `demo@novabrew.co` / `demo1234!` (premium) or register a free account.
 Architecture, commands, and the decisions-and-pitfalls writeup: [docs/deployment.md](docs/deployment.md).
 
@@ -14,29 +14,45 @@ Every AI capability — sentiment scoring, embeddings, theme labeling, reply dra
 behind an adapter interface ([backend/app/integrations/](backend/app/integrations/)). Two
 interchangeable implementations ship:
 
-| | Mock adapters (deployed default) | Real Claude |
+| | Mock adapters (local + CI default) | Real Claude (**deployed**) |
 |---|---|---|
 | Cost / keys | $0, no API key | metered, needs `ANTHROPIC_API_KEY` |
-| Output | deterministic — same input, same result | model-generated |
-| Used for | the public demo, CI, reproducible grading | production-grade analysis |
+| Output | deterministic — same input, same result | model-generated, varies in wording |
+| Used for | local development, the test suites, reproducible grading | the live demo, production-grade analysis |
 | Models | — | Haiku 4.5 (batched sentiment, structured output), Sonnet 5 (theme summaries, replies) |
 
-The live demo runs the **mock** adapters on purpose: anyone can click through it at zero
-cost and get identical results every time, which is what you want for a shared demo URL and
-for a test suite that must not flake. Switching is **configuration, not code** — the
-`anthropic` SDK is already baked into the production image, so it takes one command:
+**The live demo runs real Claude** (`LLM_PROVIDER=anthropic`, `EMBEDDINGS_PROVIDER=mock`), so
+what you see at the demo URL is genuine model output, not a canned heuristic. A fresh clone,
+by contrast, runs entirely on the deterministic mocks: **zero API keys**, and a test suite
+that can't flake on a model's wording.
+
+Switching is **configuration, not code** — the `anthropic` SDK is baked into the production
+image, so either direction is one command and no rebuild:
 
 ```bash
+# deployed default: real Claude
 gcloud run services update sellersense --region us-central1 \
   --set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest,DATABASE_URL=database-url:latest,JWT_SECRET=jwt-secret:latest \
   --set-env-vars LLM_PROVIDER=anthropic,EMBEDDINGS_PROVIDER=mock
+
+# fall back to the free, deterministic adapters (also the incident workaround)
+gcloud run services update sellersense --region us-central1 \
+  --set-env-vars LLM_PROVIDER=mock,EMBEDDINGS_PROVIDER=mock
+
+# check which one is live right now
+gcloud run services describe sellersense --region us-central1 \
+  --format='value(spec.template.spec.containers[0].env)' | tr ',' '\n' | grep PROVIDER
 ```
 
-### Verified with real Claude
+Two consequences of running the real path in public, stated plainly: every upload on the demo
+URL is a metered API call, and analysis wording differs between runs — so tests must assert
+structure and topic, never exact strings ([docs/03-issue-log.md, issue 14](docs/03-issue-log.md#issue-14--e2e-suite-broke-when-production-switched-from-mock-adapters-to-real-claude)).
 
-The real path has been run end-to-end on the deployed service — same 50-review CSV, same
-pipeline, only the adapter swapped. Real Claude analyzed all 50 reviews in ~30 seconds and
-produced measurably sharper analysis:
+### Mock vs real, measured
+
+Both paths were run end-to-end on the deployed service — same 50-review CSV, same pipeline,
+only the adapter swapped. Real Claude analyzed all 50 reviews in ~20 s warm (~34 s including
+a cold start) and produced measurably sharper analysis:
 
 ![Dashboard powered by real Claude](docs/images/real-claude-themes.png)
 
@@ -58,8 +74,9 @@ Monorepo:
 - `backend/` — FastAPI + SQLAlchemy 2.0 async + PostgreSQL 16 + pgvector
 - `docs/` — API spec, database design, test cases & results
 
-Runs with **zero API keys**: all AI providers (LLM, embeddings, email) default to
-deterministic mock adapters selected by config.
+A fresh clone runs with **zero API keys**: locally, all AI providers (LLM, embeddings, email)
+default to the deterministic mock adapters selected by config. The key is only needed to run
+the real Claude path, which is how the deployment is configured.
 
 ## Quick start
 
@@ -96,8 +113,12 @@ cd backend && python -m scripts.seed
 ### 4. Tests
 
 ```bash
-cd backend && pytest               # 35 automated API tests (uses sellersense_test DB)
-bash scripts/smoke.sh              # end-to-end curl smoke against the running server
+cd backend && pytest               # 44 API tests (uses the sellersense_test DB)
+bash scripts/smoke.sh              # 13-step curl smoke against the running local server
+bash scripts/smoke_cloud.sh        # 10-check smoke against the deployed service (safe: throwaway account)
+
+cd ../frontend && npm test         # 20 component/contract tests
+node e2e/acceptance.mjs            # browser E2E (BASE=https://sellersense-ai.web.app for the deployment)
 ```
 
 ### 5. Frontend (optional, mock mode by default)
@@ -109,6 +130,16 @@ npm install && npm run dev    # http://localhost:5173
 
 ## Documentation
 
-- [docs/api-spec.md](docs/api-spec.md) — all 12 APIs with sample JSON input/output
+**Start here: [docs/README.md](docs/README.md)** — the documentation index, with a table of
+contents covering all of the below.
+
+- [docs/01-production-support.md](docs/01-production-support.md) — dependency map, monitoring, incident playbooks, and every test suite with executed results
+- [docs/02-setup-guide.md](docs/02-setup-guide.md) — set up database, backend and frontend from scratch, with validation at every step
+- [docs/03-issue-log.md](docs/03-issue-log.md) — 16 issues: symptom, diagnosis, research, fix, verification
+- [docs/04-user-guide.md](docs/04-user-guide.md) — end-user guide with screenshots and known limitations
+- [docs/05-architecture.md](docs/05-architecture.md) — architecture diagram, communication flows, deployment pipeline, security
+- [docs/api-spec.md](docs/api-spec.md) — all 16 APIs with sample JSON input/output
 - [docs/db-design.md](docs/db-design.md) — ERD + table DDL
+- [docs/deployment.md](docs/deployment.md) — the reproducible GCP deploy, plus decisions and pitfalls
+- [docs/benchmarks.md](docs/benchmarks.md) — every performance number, and how it was measured
 - [docs/test-cases.md](docs/test-cases.md) / [docs/test-results.md](docs/test-results.md) — API test cases and executed results

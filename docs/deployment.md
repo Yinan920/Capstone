@@ -1,12 +1,17 @@
 # SellerSense — Cloud Deployment (GCP)
 
-**Live URL:** https://sellersense-414647520736.us-central1.run.app
+**Live URL:** https://sellersense-ai.web.app
+(the Cloud Run origin stays reachable at https://sellersense-yuuwat5zca-uc.a.run.app)
 **Demo login:** `demo@novabrew.co` / `demo1234!` (premium tier) — or register a fresh free-tier account.
 
 ## Architecture
 
 ```
-Browser ── HTTPS (automatic TLS, *.run.app domain)
+Browser ── HTTPS (automatic TLS, sellersense-ai.web.app)
+   │
+   ▼
+Firebase Hosting  site "sellersense-ai"
+   global CDN edge; rewrites ** → the Cloud Run service below
    │
    ▼
 Cloud Run  service "sellersense"  (region us-central1)
@@ -95,6 +100,12 @@ gcloud billing budgets create --billing-account=<ACCOUNT_ID> \
   --display-name="SellerSense capstone budget" --budget-amount=25USD \
   --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 \
   --filter-projects=projects/sellersense-yinan920
+
+# 7. short public URL: Firebase Hosting in front of Cloud Run (config in firebase.json)
+firebase projects:addfirebase sellersense-yinan920   # Firebase onto the *existing* project
+# then upgrade to the Blaze plan in the console — Cloud Run rewrites require it
+firebase hosting:sites:create sellersense-ai
+firebase deploy --only hosting
 ```
 
 Verification: Playwright E2E ran against the live URL — **8/8 passed** (register → upload
@@ -177,6 +188,16 @@ deploy. Cloud Run's `/tmp` is an in-memory tmpfs counted against the 1 GiB limit
 processes uploads entirely in memory and writes nothing, so it doesn't matter here, but a
 file-writing app should know. Cold starts are a few seconds; the E2E suite gives the first
 navigation 45 s.
+
+**8. The short URL cost nothing architecturally — but had two hard constraints.** The
+`*.run.app` hostname embeds the project *number*, so it cannot be shortened; only a domain
+in front of it can. Firebase Hosting's free `*.web.app` subdomain solved it, subject to two
+rules worth knowing before starting: a Hosting site can only rewrite to a Cloud Run service
+in the **same project** (so Firebase had to be added to the existing `sellersense-yinan920`
+via `projects:addfirebase`, not to a separate Firebase project), and site IDs are **globally
+unique** — `sellersense` was already taken, hence `sellersense-ai`. Because the rewrite is
+`**` → Cloud Run, the single-container design is untouched: no build flag, no CORS, no code
+change. The Cloud Run URL keeps working as the origin.
 
 ## Operating it
 

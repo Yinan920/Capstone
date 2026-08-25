@@ -336,7 +336,10 @@ function Pricing() {
               <span className="mb-1.5 text-white/50">/month</span>
             </div>
             <p className="mt-2 text-sm text-white/60">For sellers serious about their rating.</p>
-            <Link to="/app" className="mt-6 block">
+            {/* Straight to the plans page, so the homepage's paid tier leads to the
+                actual purchase flow rather than dropping the visitor on the dashboard.
+                RequireAuth sends a signed-out visitor through login first. */}
+            <Link to="/app/upgrade" className="mt-6 block">
               <Button variant="signal" className="w-full">Go Premium <ArrowRight className="h-4 w-4" /></Button>
             </Link>
             <ul className="mt-6 space-y-3 text-sm">

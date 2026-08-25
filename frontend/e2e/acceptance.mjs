@@ -12,8 +12,8 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 
-// Point BASE at any deployment (local dev or the Cloud Run URL):
-//   BASE=https://sellersense-xxxx.run.app node e2e/acceptance.mjs
+// Point BASE at any deployment (local dev or the deployed URL):
+//   BASE=https://sellersense-ai.web.app node e2e/acceptance.mjs
 const BASE = process.env.BASE ?? 'http://localhost:5173';
 const SHOTS = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -45,7 +45,9 @@ async function uploadFlow(page, datasetName) {
   await page.getByLabel(/sales channel/i).selectOption('amazon');
   await page.setInputFiles('#csv-file', CSV);
   await page.getByRole('button', { name: /upload & analyze/i }).click();
-  await page.getByText(/analysis complete/i).waitFor({ timeout: 30_000 });
+  // Generous: with LLM_PROVIDER=anthropic a 50-review analysis takes ~20 s warm
+  // and ~40 s including a cold start, versus ~2 s on the deterministic adapters.
+  await page.getByText(/analysis complete/i).waitFor({ timeout: 180_000 });
 }
 
 const browser = await chromium.launch();
@@ -84,8 +86,11 @@ try {
   // 4. Dashboard renders real data
   await page.getByRole('link', { name: /view insights dashboard/i }).click();
   await page.getByText(/AI analysis of 50 customer reviews/i).waitFor();
-  await page.getByText(/packaging damage/i).first().waitFor();
-  ok('dashboard shows 50 analyzed reviews + Packaging damage theme');
+  // Match on the topic, not an exact label: with real Claude the theme name is
+  // model-written ("Damaged Packaging & Shipping Issues"), while the mock
+  // adapter always returns the fixed string "Packaging damage".
+  await page.getByText(/packaging/i).first().waitFor();
+  ok('dashboard shows 50 analyzed reviews + a packaging complaint theme');
   await shot(page, 'dashboard-real-data');
 
   // 5. Free tier: competitors page is gated (real 402 behind the blur)
@@ -112,7 +117,7 @@ try {
 
   // 8. Alerts page shows pipeline-generated alerts
   await page.getByRole('navigation').getByRole('link', { name: /alerts/i }).click();
-  await page.getByText(/packaging damage/i).first().waitFor({ timeout: 20_000 });
+  await page.getByText(/packaging/i).first().waitFor({ timeout: 30_000 });
   ok('premium account sees pipeline-generated alerts');
   await shot(page, 'premium-alerts');
 

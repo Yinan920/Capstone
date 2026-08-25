@@ -1,0 +1,6 @@
+Intentionally empty.
+
+Firebase Hosting requires a `public` directory, but this site serves no static
+files of its own: every request is rewritten to the Cloud Run service (see
+firebase.json), which already serves both the API and the built SPA from one
+container. This file only exists so git tracks the directory.
