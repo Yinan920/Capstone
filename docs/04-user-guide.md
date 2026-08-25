@@ -264,9 +264,8 @@ Please read this section before judging the product — these are deliberate bou
 
 | | |
 |---|---|
-| **Maintainer** | Yinan (project owner) |
-| **Email** | yiileanor920@gmail.com |
-| **Issues / bug reports** | Open an issue on the project repository, including what you did, what you expected, what happened, and the time it happened |
+| **Maintainer** | Yinan (project owner) — reachable through GitHub, or directly if you already have their address |
+| **Issues / bug reports — preferred** | Open an issue at https://github.com/Yinan920/Capstone/issues, including what you did, what you expected, what happened, and the time it happened |
 | **Live application** | https://sellersense-ai.web.app |
 | **Service status, first check** | https://sellersense-ai.web.app/api/health — `"status":"ok"` means the application is running; `"database":"up"` means it can reach its data |
 
