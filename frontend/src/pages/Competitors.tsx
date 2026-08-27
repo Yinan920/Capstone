@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Target, UploadCloud, XCircle } from 'lucide-react';
 import { getCompetitorComparisons } from '@/lib/api';
+import { useAppStore } from '@/store/appStore';
 import Button from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
 import PageHeader, { Loading } from '@/components/ui/PageHeader';
@@ -15,9 +16,13 @@ import { CHART } from '@/lib/chartColors';
 import { cn, formatPct, formatSignedPct } from '@/lib/utils';
 
 export default function Competitors() {
+  // datasetId is part of the key, not just the request: without it React Query
+  // served the first dataset's comparison from cache forever and the dataset
+  // switcher appeared to do nothing on this page.
+  const datasetId = useAppStore((s) => s.datasetId);
   const { data, isLoading } = useQuery({
-    queryKey: ['competitors'],
-    queryFn: getCompetitorComparisons,
+    queryKey: ['competitors', datasetId],
+    queryFn: () => getCompetitorComparisons(datasetId),
   });
   const [idx, setIdx] = useState(0);
 
@@ -128,6 +133,11 @@ export default function Competitors() {
                           {a}
                         </li>
                       ))}
+                      {cmp.advantages.length === 0 && (
+                        <li className="text-sm text-ink/45">
+                          No dimension where you lead {cmp.competitor.name} by 5 points or more yet.
+                        </li>
+                      )}
                     </ul>
                   </Card>
                   <Card>
@@ -139,13 +149,23 @@ export default function Competitors() {
                           {g}
                         </li>
                       ))}
+                      {cmp.gaps.length === 0 && (
+                        <li className="text-sm text-ink/45">
+                          No dimension where {cmp.competitor.name} leads you by 5 points or more.
+                        </li>
+                      )}
                     </ul>
-                    <div className="mt-4 flex items-center gap-2 rounded-xl bg-brand-50/60 p-3 text-sm text-brand-700">
-                      <Target className="h-4 w-4" />
-                      <span className="font-medium">
-                        Close the packaging gap to overtake {cmp.competitor.name} on overall sentiment.
-                      </span>
-                    </div>
+                    {/* Names the axis you actually trail on — gaps are ordered
+                        by the comparison, so the first is the widest. */}
+                    {cmp.gaps.length > 0 && (
+                      <div className="mt-4 flex items-center gap-2 rounded-xl bg-brand-50/60 p-3 text-sm text-brand-700">
+                        <Target className="h-4 w-4" />
+                        <span className="font-medium">
+                          Closing your widest gap — {cmp.gaps[0].toLowerCase()} — is what moves you
+                          past {cmp.competitor.name} on overall sentiment.
+                        </span>
+                      </div>
+                    )}
                   </Card>
                 </div>
               </div>

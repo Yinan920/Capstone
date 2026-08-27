@@ -1,5 +1,7 @@
 # SellerSense
 
+[![CI](https://github.com/Yinan920/Capstone/actions/workflows/ci.yml/badge.svg)](https://github.com/Yinan920/Capstone/actions/workflows/ci.yml)
+
 AI-driven customer-feedback intelligence for small/medium e-commerce sellers:
 upload store reviews → async AI analysis (sentiment, theme clustering, complaint
 keywords, alerts) → insights dashboard, competitor benchmarking, and reply drafts.
@@ -51,8 +53,8 @@ structure and topic, never exact strings ([docs/03-issue-log.md, issue 14](docs/
 ### Mock vs real, measured
 
 Both paths were run end-to-end on the deployed service — same 50-review CSV, same pipeline,
-only the adapter swapped. Real Claude analyzed all 50 reviews in ~20 s warm (~34 s including
-a cold start) and produced measurably sharper analysis:
+only the adapter swapped. Real Claude analyzed all 50 reviews in ~8 s warm on the deployed
+service and produced measurably sharper analysis:
 
 ![Dashboard powered by real Claude](docs/images/real-claude-themes.png)
 
@@ -113,11 +115,11 @@ cd backend && python -m scripts.seed
 ### 4. Tests
 
 ```bash
-cd backend && pytest               # 44 API tests (uses the sellersense_test DB)
+cd backend && pytest               # 61 tests (uses the sellersense_test DB)
 bash scripts/smoke.sh              # 13-step curl smoke against the running local server
 bash scripts/smoke_cloud.sh        # 10-check smoke against the deployed service (safe: throwaway account)
 
-cd ../frontend && npm test         # 20 component/contract tests
+cd ../frontend && npm test         # 24 component/contract tests
 node e2e/acceptance.mjs            # browser E2E (BASE=https://sellersense-ai.web.app for the deployment)
 ```
 
@@ -138,8 +140,9 @@ contents covering all of the below.
 - [docs/03-issue-log.md](docs/03-issue-log.md) — 16 issues: symptom, diagnosis, research, fix, verification
 - [docs/04-user-guide.md](docs/04-user-guide.md) — end-user guide with screenshots and known limitations
 - [docs/05-architecture.md](docs/05-architecture.md) — architecture diagram, communication flows, deployment pipeline, security
-- [docs/api-spec.md](docs/api-spec.md) — all 16 APIs with sample JSON input/output
+- [docs/api-spec.md](docs/api-spec.md) — all 19 APIs with sample JSON input/output
 - [docs/db-design.md](docs/db-design.md) — ERD + table DDL
 - [docs/deployment.md](docs/deployment.md) — the reproducible GCP deploy, plus decisions and pitfalls
-- [docs/benchmarks.md](docs/benchmarks.md) — every performance number, and how it was measured
+- [docs/benchmarks.md](docs/benchmarks.md) — every performance and cost number, and how it was measured
+- [docs/evaluation.md](docs/evaluation.md) — sentiment accuracy against a 230-review labelled gold set, vs two baselines
 - [docs/test-cases.md](docs/test-cases.md) / [docs/test-results.md](docs/test-results.md) — API test cases and executed results

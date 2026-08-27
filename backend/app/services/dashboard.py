@@ -52,6 +52,7 @@ async def build_dashboard(db: AsyncSession, dataset: Dataset) -> DashboardOut:
     negative = sum(1 for r in reviews if r.sentiment_label == "negative")
     net_sentiment = round(sum(r.sentiment_score or 0 for r in reviews) / total, 2) if total else 0.0
 
+    trend = _weekly_trend(reviews)
     kpis = KpisOut(
         reviews_analyzed=total,
         net_sentiment=net_sentiment,
@@ -59,12 +60,15 @@ async def build_dashboard(db: AsyncSession, dataset: Dataset) -> DashboardOut:
         complaint_themes=sum(1 for t in themes if t.is_complaint),
         avg_rating=round(sum(r.rating for r in reviews) / total, 1) if total else 0.0,
         response_opportunities=negative,
+        net_sentiment_delta=(
+            round((trend[-1].score - trend[0].score) * 100) if len(trend) >= 2 else None
+        ),
     )
 
     return DashboardOut(
         dataset=DatasetOut.model_validate(dataset),
         kpis=kpis,
-        trend=_weekly_trend(reviews),
+        trend=trend,
         distribution=_distribution(positive, neutral, negative, total),
         themes=[ThemeOut.model_validate(t) for t in themes],
         keywords=[KeywordOut.model_validate(k) for k in keywords],

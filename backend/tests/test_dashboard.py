@@ -13,8 +13,11 @@ async def test_dashboard_matches_frontend_contract(auth_client):
     # Top-level keys — must equal frontend DashboardData exactly
     assert set(dash.keys()) == {"dataset", "kpis", "trend", "distribution", "themes", "keywords", "reviews"}
     assert set(dash["kpis"].keys()) == {
-        "reviewsAnalyzed", "netSentiment", "positiveRate", "complaintThemes", "avgRating", "responseOpportunities",
+        "reviewsAnalyzed", "netSentiment", "positiveRate", "complaintThemes", "avgRating",
+        "responseOpportunities", "netSentimentDelta",
     }
+    # The sample spans several weeks, so the trend delta is computed, not null.
+    assert isinstance(dash["kpis"]["netSentimentDelta"], (int, float))
     assert dash["kpis"]["reviewsAnalyzed"] == 50
     assert -1 <= dash["kpis"]["netSentiment"] <= 1
     assert 0 <= dash["kpis"]["positiveRate"] <= 1

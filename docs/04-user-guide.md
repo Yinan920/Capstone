@@ -231,9 +231,9 @@ Please read this section before judging the product — these are deliberate bou
 | Limitation | What it means for you |
 |---|---|
 | **Upload caps: 50 reviews (Free), 200 (Premium)** | A larger file is rejected with a message telling you the cap and how many rows your file has. Split the file, or upload the most recent reviews |
-| **CSV only** | There is no automatic import from Amazon/Shopify/TikTok yet. The home page mentions URL scraping as a Premium feature; that is **not implemented** — every upload is a CSV file today |
-| **Payment is simulated** | The checkout collects no card details and nothing is charged. The plan change itself is real |
-| **Alert emails are simulated** | Alerts appear in the app and record who *would* be notified; no email is actually sent |
+| **CSV only** | There is no automatic import from Amazon/Shopify/TikTok. Export reviews from your channel and upload the CSV — that is the only ingestion path, and the site no longer advertises any other |
+| **No billing** | Activating Premium changes your plan immediately and charges nothing. The tier change and the API-side gating enforcing it are real; payment processing is not implemented, and the upgrade screen says so |
+| **Alerts are in-app only** | Alerts arrive in the Alerts page with an unread badge in the sidebar. There is no email or Slack push — nothing is sent outside the application |
 | **The exact wording of AI output varies between runs** | Theme names and summaries are written by an AI model, so re-analysing the same file can produce slightly different phrasing. The findings stay consistent; the words are not identical |
 | **An analysis can occasionally be interrupted** | The demo server shuts down when idle. If a progress bar sits unchanged for several minutes, delete the dataset and upload again |
 | **The first action after a quiet period is slow** | The server sleeps when nobody is using it and takes about 10 seconds to wake up. This affects the first click only |

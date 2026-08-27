@@ -11,6 +11,7 @@ const DATASET: Dataset = {
   source: 'amazon',
   productName: 'NovaBrew Go Portable Espresso Maker',
   reviewCount: 50,
+  takeaway: null,
   createdAt: '2026-07-06T12:00:00Z',
 };
 

@@ -5,6 +5,8 @@ Competitor rows store per-axis satisfaction scores (0–100) in `axes` jsonb:
 [{"axis": "Coffee quality", "score": 72}, ...]. The caller's per-axis score is
 derived from their theme clusters (matched by axis keywords); unmatched axes
 fall back to the overall positive rate."""
+import uuid
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,17 +38,38 @@ def _axis_score(axis: str, themes: list[ThemeCluster], fallback: int) -> int:
     return fallback
 
 
-async def build_comparisons(db: AsyncSession, user: User) -> list[CompetitorComparisonOut]:
-    # Primary dataset = most recent one that has analysis results.
-    datasets = list(
-        (
-            await db.scalars(
-                select(Dataset).where(Dataset.user_id == user.id).order_by(Dataset.created_at.desc())
-            )
-        ).all()
-    )
+async def build_comparisons(
+    db: AsyncSession, user: User, dataset_id: uuid.UUID | None = None
+) -> list[CompetitorComparisonOut]:
+    """Benchmark one of the caller's datasets against the seeded competitors.
+
+    `dataset_id` names which dataset is "you" — it is what makes the page follow
+    the dataset switcher. Without it the comparison silently pinned itself to the
+    caller's newest analyzed dataset, so switching datasets in the UI changed
+    nothing. Omitted, that fallback still applies (first load, before a selection
+    exists); a dataset that is not the caller's, or has no analysis yet, yields
+    an empty list rather than someone else's numbers.
+    """
+    if dataset_id is not None:
+        candidates = [
+            d
+            for d in [await db.get(Dataset, dataset_id)]
+            if d is not None and d.user_id == user.id
+        ]
+    else:
+        # Fallback: most recent dataset that has analysis results.
+        candidates = list(
+            (
+                await db.scalars(
+                    select(Dataset)
+                    .where(Dataset.user_id == user.id)
+                    .order_by(Dataset.created_at.desc())
+                )
+            ).all()
+        )
+
     primary, themes, reviews = None, [], []
-    for candidate in datasets:
+    for candidate in candidates:
         themes = list(
             (await db.scalars(select(ThemeCluster).where(ThemeCluster.dataset_id == candidate.id))).all()
         )

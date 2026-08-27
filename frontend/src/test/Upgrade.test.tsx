@@ -21,9 +21,14 @@ describe('Upgrade page', () => {
     expect(screen.getByRole('button', { name: /activate premium/i })).toBeInTheDocument();
   });
 
-  it('explains that card data never reaches our servers', async () => {
+  it('says what is built and what is not: entitlement yes, billing no', async () => {
     renderPage(<Upgrade />, { route: '/upgrade-page' });
-    expect(await screen.findByText(/stripe checkout/i, {}, { timeout: 4000 })).toBeInTheDocument();
-    expect(screen.getByText(/never touch our servers/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/billing itself is not built/i, {}, { timeout: 4000 }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/nothing is charged/i)).toBeInTheDocument();
+    // The claim that survives is the architectural one, not a promise of a
+    // payment flow the project does not have.
+    expect(screen.getByText(/stripe checkout/i)).toBeInTheDocument();
   });
 });

@@ -10,6 +10,7 @@ class DatasetOut(CamelModel):
     source: str
     product_name: str
     review_count: int
+    takeaway: Optional[str] = None
     created_at: datetime
 
 

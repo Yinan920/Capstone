@@ -42,9 +42,10 @@ STAGE_OF_PROGRESS = {
     30: "1. Sentiment          (LLM: Haiku, chunked+concurrent)",
     50: "2. Embeddings         (local: mock md5+numpy)",
     65: "3. KMeans clustering  (local: sklearn)",
-    80: "4. Cluster labels     (LLM: Sonnet, SEQUENTIAL loop)",
+    80: "4. Cluster labels     (LLM: Sonnet, chunked+concurrent)",
+    85: "4b. Dataset takeaway  (LLM: Haiku, single call)",
     90: "5. Keyword n-grams    (local: sklearn CountVectorizer)",
-    95: "6. Alert rules        (local + mock email)",
+    95: "6. Alert rules        (local)",
 }
 
 
@@ -117,7 +118,11 @@ async def main():
     # --- instrument: LLM calls (count + cumulative wall time) -------------
     llm = providers.get_llm()
     print(f"LLM adapter in use: {type(llm).__name__}")
-    stats = {"score": [0, 0.0], "label_cluster": [0, 0.0]}
+    # Per-call durations, not just a cumulative sum: stages 1 and 4 both run
+    # their requests concurrently, so summing call durations overstates the
+    # time actually spent waiting. Stage wall times below come from the
+    # pipeline's own progress checkpoints instead.
+    stats = {"score": [], "label_cluster": [], "summarize_findings": []}
 
     def wrap(name):
         orig = getattr(llm, name)
@@ -127,8 +132,7 @@ async def main():
             try:
                 return await orig(*a, **kw)
             finally:
-                stats[name][0] += 1
-                stats[name][1] += time.perf_counter() - t0
+                stats[name].append(time.perf_counter() - t0)
         return inner
 
     for n in stats:
@@ -146,6 +150,10 @@ async def main():
             return out
 
         llm._score_chunk = timed_chunk
+
+    # get_llm() is lru_cached, so zero the meter rather than trusting a fresh process
+    if hasattr(llm, "usage"):
+        llm.usage.reset()
 
     # --- run the real pipeline -------------------------------------------
     t0 = time.perf_counter()
@@ -173,21 +181,58 @@ async def main():
     print(f"reviews scored: {scored}/{len(rows)}")
     print(f"rows written: {counts}")
     print("\n--- stage breakdown (from pipeline's own progress checkpoints) ---")
+    stage_wall = {}
     prev = marks[0][1] if marks else t0
     for value, ts in marks[1:]:
+        stage_wall[value] = ts - prev
         print(f"  {STAGE_OF_PROGRESS.get(value, value):52s} {ts - prev:7.2f}s")
         prev = ts
     print(f"  {'(final commit)':52s} {t0 + total - prev:7.2f}s")
+
+    def concurrency_line(durs, stage_secs, unit):
+        """Serial-equivalent vs measured wall time for one concurrent stage."""
+        if not durs:
+            return
+        serial = sum(durs)
+        speedup = f", {serial / stage_secs:.1f}x" if stage_secs > 0 else ""
+        print(f"    -> {len(durs)} {unit}; per-call {min(durs):.2f}s..{max(durs):.2f}s, "
+              f"sum-if-serial {serial:.2f}s vs {stage_secs:.2f}s actual{speedup}")
+
     print("\n--- LLM vs local ---")
-    print(f"  score()         calls={stats['score'][0]:2d}  wall={stats['score'][1]:7.2f}s  <- stage 1")
-    if chunk_calls:
-        durs = sorted(d for _, d in chunk_calls)
-        print(f"    -> {len(chunk_calls)} chunk requests of {chunk_calls[0][0]} reviews each; "
-              f"per-chunk {durs[0]:.2f}s..{durs[-1]:.2f}s, sum-if-serial {sum(durs):.2f}s")
-    print(f"  label_cluster() calls={stats['label_cluster'][0]:2d}  wall={stats['label_cluster'][1]:7.2f}s  <- stage 4")
-    llm_total = stats["score"][1] + stats["label_cluster"][1]
+    s1, s4 = stage_wall.get(30, 0.0), stage_wall.get(80, 0.0)
+    print(f"  stage 1 sentiment       {s1:7.2f}s   ({len(stats['score'])} score() call)")
+    concurrency_line(
+        [d for _, d in chunk_calls], s1,
+        f"chunk requests of {chunk_calls[0][0]} reviews each" if chunk_calls else "chunks",
+    )
+    print(f"  stage 4 cluster labels  {s4:7.2f}s")
+    concurrency_line(stats["label_cluster"], s4, "label_cluster() requests")
+    s4b = stage_wall.get(85, 0.0)
+    print(f"  stage 4b takeaway       {s4b:7.2f}s   "
+          f"({len(stats['summarize_findings'])} summarize_findings() call)")
+    llm_total = s1 + s4 + s4b
     print(f"  external LLM total      {llm_total:7.2f}s  ({llm_total / total * 100:.0f}% of pipeline)")
     print(f"  local compute + DB      {total - llm_total:7.2f}s")
+
+    ledger = getattr(llm, "usage", None)
+    if ledger is not None and ledger.calls:
+        from app.integrations.llm.pricing import INTRO, PRICING_AS_OF, STANDARD
+
+        n = len(rows)
+        print(f"\n--- token cost (rates as of {PRICING_AS_OF}, billed at standard) ---")
+        for model in sorted(ledger.by_model):
+            u = ledger.by_model[model]
+            line_cost = STANDARD[model].cost(u.input_tokens, u.output_tokens) if model in STANDARD else 0.0
+            print(f"  {model:20s} {u.calls:2d} calls  "
+                  f"in {u.input_tokens:7,d}  out {u.output_tokens:6,d}  ${line_cost:.4f}")
+        if ledger.unpriced():
+            print(f"  !! no rate on file for: {', '.join(ledger.unpriced())}")
+
+        run_cost = ledger.cost()
+        print(f"  {'TOTAL':20s} {ledger.calls:2d} calls  "
+              f"in {ledger.input_tokens:7,d}  out {ledger.output_tokens:6,d}  ${run_cost:.4f}")
+        print(f"  at Sonnet's intro rate (ends 2026-08-31): ${ledger.cost(INTRO):.4f}")
+        print(f"  per review: ${run_cost / n:.5f}   per 1,000 reviews: ${run_cost / n * 1000:.2f}")
     print(f"\nTOTAL pipeline wall time: {total:.2f}s   (DB started_at->finished_at: {db_secs:.2f}s)")
 
 

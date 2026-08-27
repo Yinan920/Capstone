@@ -29,7 +29,12 @@ class ReplyDrafter(Protocol):
         ...
 
 
-class EmailSender(Protocol):
-    async def send_alert_email(self, to: str, theme: str, share: float, threshold: float) -> bool:
-        """Send a threshold-crossed alert. Returns True if 'sent'."""
+class FindingsSummarizer(Protocol):
+    async def summarize_findings(self, themes: list[dict], net_sentiment: float) -> str:
+        """Return one actionable sentence for the seller across all themes.
+
+        Each theme dict carries `label`, `share`, `avg_sentiment`, `trend` and
+        `is_complaint` — enough to say which problem is worth acting on first,
+        without re-reading the reviews.
+        """
         ...

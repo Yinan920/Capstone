@@ -27,9 +27,10 @@ class FeedbackAlert(Base):
     share: Mapped[float] = mapped_column(Float, nullable=False)
     threshold: Mapped[float] = mapped_column(Float, nullable=False)
     previous_share: Mapped[float] = mapped_column(Float, nullable=False)
-    window_days: Mapped[int] = mapped_column(Integer, nullable=False, default=14, server_default=text("14"))
     sample_reviews: Mapped[list] = mapped_column(JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb"))
-    email_sent_to: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # Alerts are delivered in-app: the row *is* the notification. NULL means the
+    # seller has not opened it yet, which is what drives the sidebar unread count.
+    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     triggered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), server_default=text("now()")
     )

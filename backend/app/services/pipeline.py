@@ -2,12 +2,14 @@
 
 Runs in a background job (see app/workers). Owns its own DB session. Steps:
 sentiment → embeddings → KMeans theme clustering → LLM labels/summaries →
-TF-IDF complaint keywords → alert rule engine → job done. Progress is
-committed after each step so GET /jobs/{id} shows live movement.
+dataset takeaway → TF-IDF complaint keywords → alert rule engine → job done.
+Progress is committed after each step so GET /jobs/{id} shows live movement.
 """
+import asyncio
 import logging
 import uuid
 from collections import Counter
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import numpy as np
@@ -16,10 +18,16 @@ from sklearn.feature_extraction.text import CountVectorizer
 
 from app.core.config import settings
 from app.db.session import async_session_factory
-from app.integrations.providers import get_email_sender, get_embedder, get_llm
+from app.integrations.providers import get_embedder, get_llm
 from app.models import AnalysisJob, Dataset, FeedbackAlert, KeywordStat, Review, ThemeCluster, User
 
 logger = logging.getLogger(__name__)
+
+# How many cluster-labeling requests may be in flight at once (stage 4).
+# `_pick_k` caps k at 8, so a ceiling of 8 makes this a single wave. Read from
+# settings rather than a constant so a deployment that hits rate limits can be
+# dialled back without a rebuild; see `settings.theme_label_concurrency`.
+THEME_LABEL_CONCURRENCY = settings.theme_label_concurrency
 
 
 def _pick_k(n_reviews: int) -> int:
@@ -33,6 +41,18 @@ def _pick_k(n_reviews: int) -> int:
     if n_reviews < 8:
         return min(2, n_reviews)
     return min(8, max(3, round((n_reviews / 2) ** 0.5)))
+
+
+@dataclass
+class _ClusterStats:
+    """Everything about one cluster that is computed locally, before the LLM
+    is asked to name it. Splitting this out is what lets the labeling calls run
+    concurrently while the DB writes stay sequential."""
+
+    members: list[Review]
+    avg_sentiment: float
+    share: float
+    trend: float
 
 
 def _severity(share: float, threshold: float) -> str | None:
@@ -104,36 +124,86 @@ async def _run(db, job: AnalysisJob) -> None:
     await _progress(db, job, 65)
 
     # 4. Label + summarize each cluster; compute share/trend; assign theme_id
+    #
+    # One LLM request per cluster, and k is up to 8. Run as a plain sequential
+    # loop this stage was ~80% of a 200-review run (docs/benchmarks.md), so the
+    # clusters are labeled concurrently under the same bounded-semaphore pattern
+    # stage 1 already uses. The local statistics are computed first and the DB
+    # writes stay sequential afterwards, so the AsyncSession is still only ever
+    # touched from one task — SQLAlchemy sessions are not concurrency-safe.
     midpoint = len(reviews) // 2  # reviews are date-ordered: first half vs second half
-    complaint_themes: list[ThemeCluster] = []
+    cluster_stats: list[_ClusterStats] = []
     for cluster_idx in range(k):
         members = [r for r, c in zip(reviews, labels) if c == cluster_idx]
         if not members:
             continue
-        avg_sentiment = float(np.mean([r.sentiment_score for r in members]))
-        share = len(members) / len(reviews)
         early = sum(1 for r, c in zip(reviews[:midpoint], labels[:midpoint]) if c == cluster_idx)
         late = sum(1 for r, c in zip(reviews[midpoint:], labels[midpoint:]) if c == cluster_idx)
         early_share = early / max(1, midpoint)
         late_share = late / max(1, len(reviews) - midpoint)
-        label_text, summary, is_complaint = await llm.label_cluster([r.text for r in members], avg_sentiment)
+        cluster_stats.append(
+            _ClusterStats(
+                members=members,
+                avg_sentiment=float(np.mean([r.sentiment_score for r in members])),
+                share=len(members) / len(reviews),
+                trend=late_share - early_share,
+            )
+        )
+
+    sem = asyncio.Semaphore(THEME_LABEL_CONCURRENCY)
+
+    async def label(stat: _ClusterStats):
+        async with sem:
+            return await llm.label_cluster([r.text for r in stat.members], stat.avg_sentiment)
+
+    labeled = await asyncio.gather(*(label(s) for s in cluster_stats))
+
+    themes: list[ThemeCluster] = []
+    complaint_themes: list[ThemeCluster] = []
+    for stat, (label_text, summary, is_complaint) in zip(cluster_stats, labeled):
         theme = ThemeCluster(
             dataset_id=dataset.id,
             label=label_text,
             summary=summary,
-            review_count=len(members),
-            share=round(share, 4),
-            avg_sentiment=round(avg_sentiment, 4),
+            review_count=len(stat.members),
+            share=round(stat.share, 4),
+            avg_sentiment=round(stat.avg_sentiment, 4),
             is_complaint=is_complaint,
-            trend=round(late_share - early_share, 4),
+            trend=round(stat.trend, 4),
         )
         db.add(theme)
         await db.flush()  # get theme.id for FK assignment
-        for member in members:
+        for member in stat.members:
             member.theme_id = theme.id
+        themes.append(theme)
         if is_complaint:
             complaint_themes.append(theme)
     await _progress(db, job, 80)
+
+    # 4b. One actionable takeaway across all themes, stored on the dataset.
+    #
+    # Deliberately non-fatal: this is a presentational nicety on top of results
+    # that are already complete and persisted, so a summarizer failure must not
+    # throw away a successful analysis. The dashboard renders nothing when the
+    # column is NULL.
+    net_sentiment = float(np.mean([r.sentiment_score for r in reviews]))
+    try:
+        dataset.takeaway = await llm.summarize_findings(
+            [
+                {
+                    "label": t.label,
+                    "share": t.share,
+                    "avg_sentiment": t.avg_sentiment,
+                    "is_complaint": t.is_complaint,
+                    "trend": t.trend,
+                }
+                for t in themes
+            ],
+            net_sentiment,
+        )
+    except Exception:
+        logger.exception("takeaway generation failed for dataset %s; continuing", dataset.id)
+    await _progress(db, job, 85)
 
     # 5. High-frequency keywords (counts over negative vs positive reviews)
     for sentiment_group, keyword_sentiment, top_n in (
@@ -145,17 +215,15 @@ async def _run(db, job: AnalysisJob) -> None:
             db.add(KeywordStat(dataset_id=dataset.id, term=term, count=count, sentiment=keyword_sentiment))
     await _progress(db, job, 90)
 
-    # 6. Alert rule engine: complaint theme share vs threshold
+    # 6. Alert rule engine: complaint theme share vs threshold.
+    # The alert row *is* the notification — it lands unread (read_at NULL) in
+    # the seller's in-app alert feed. Pushing it outward (email, Slack) would be
+    # a separate delivery adapter; none is built.
     user = await db.get(User, dataset.user_id)
-    email_sender = get_email_sender()
     for theme in complaint_themes:
         severity = _severity(theme.share, settings.alert_threshold)
         if severity is None:
             continue
-        emailed_to = None
-        if severity in ("serious", "critical"):
-            if await email_sender.send_alert_email(user.email, theme.label, theme.share, settings.alert_threshold):
-                emailed_to = user.email
         db.add(
             FeedbackAlert(
                 user_id=user.id,
@@ -165,13 +233,11 @@ async def _run(db, job: AnalysisJob) -> None:
                 share=theme.share,
                 threshold=settings.alert_threshold,
                 previous_share=max(0.0, round(theme.share - theme.trend, 4)),
-                window_days=settings.alert_window_days,
                 sample_reviews=[
                     r.text[:200]
                     for r in reviews
                     if r.theme_id == theme.id and r.sentiment_label == "negative"
                 ][:3],
-                email_sent_to=emailed_to,
             )
         )
     await _progress(db, job, 95)

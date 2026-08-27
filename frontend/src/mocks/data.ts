@@ -9,6 +9,7 @@ import type {
   CompetitorComparison,
   DashboardData,
   Dataset,
+  DuplicateGroup,
   FeedbackAlert,
   Plan,
   ReplyDraft,
@@ -31,6 +32,9 @@ export const MOCK_DATASETS: Dataset[] = [
     source: 'amazon',
     productName: 'NovaBrew Go Portable Espresso Maker',
     reviewCount: 184,
+    takeaway:
+      'Packaging damage is your largest complaint driver at 24% of reviews, and it is growing. ' +
+      'Addressing it is the single highest-leverage fix in this dataset.',
     createdAt: '2026-07-06T12:00:00Z',
   },
   {
@@ -39,6 +43,9 @@ export const MOCK_DATASETS: Dataset[] = [
     source: 'shopify',
     productName: 'NovaBrew Go Portable Espresso Maker',
     reviewCount: 132,
+    takeaway:
+      'Slow shipping is your largest complaint driver at 19% of reviews, and it is holding steady. ' +
+      'Addressing it is the single highest-leverage fix in this dataset.',
     createdAt: '2026-07-05T12:00:00Z',
   },
   {
@@ -47,6 +54,9 @@ export const MOCK_DATASETS: Dataset[] = [
     source: 'tiktok',
     productName: 'NovaBrew Go Portable Espresso Maker',
     reviewCount: 97,
+    takeaway:
+      'Battery drain is your largest complaint driver at 17% of reviews, and it is growing. ' +
+      'Addressing it is the single highest-leverage fix in this dataset.',
     createdAt: '2026-07-04T12:00:00Z',
   },
 ];
@@ -215,6 +225,7 @@ const DASHBOARDS: Record<string, DashboardData> = {
       complaintThemes: 4,
       avgRating: 4.1,
       responseOpportunities: 23,
+      netSentimentDelta: -4,
     },
     trend: TREND,
     distribution: { positive: 66, neutral: 18, negative: 16 },
@@ -292,6 +303,7 @@ const DASHBOARDS: Record<string, DashboardData> = {
       complaintThemes: 3,
       avgRating: 4.3,
       responseOpportunities: 12,
+      netSentimentDelta: -2,
     },
     trend: TREND.map((p) => ({ ...p, positive: p.positive + 4, negative: Math.max(4, p.negative - 3) })),
     distribution: { positive: 71, neutral: 17, negative: 12 },
@@ -346,6 +358,7 @@ const DASHBOARDS: Record<string, DashboardData> = {
       complaintThemes: 5,
       avgRating: 3.8,
       responseOpportunities: 31,
+      netSentimentDelta: -7,
     },
     trend: TREND.map((p) => ({ ...p, positive: Math.max(45, p.positive - 8), negative: p.negative + 5 })),
     distribution: { positive: 58, neutral: 19, negative: 23 },
@@ -479,48 +492,48 @@ export const MOCK_COMPETITORS: CompetitorComparison[] = [
 export const MOCK_ALERTS: FeedbackAlert[] = [
   {
     id: 'al_01',
+    datasetId: 'ds_amazon',
     theme: 'Packaging damaged',
     severity: 'critical',
     share: 0.18,
     threshold: 0.15,
     previousShare: 0.09,
-    windowDays: 14,
     sampleReviews: [
       'Arrived with the box crushed and the pressure gauge cracked.',
       'Packaging was flimsy, unit was dented on arrival.',
       'Box was open when it arrived and the manual was missing.',
     ],
-    emailSentTo: 'demo@novabrew.co',
+    readAt: null,
     triggeredAt: '2026-07-06T08:02:00Z',
   },
   {
     id: 'al_02',
+    datasetId: 'ds_amazon',
     theme: 'Slow shipping',
     severity: 'serious',
     share: 0.11,
     threshold: 0.1,
     previousShare: 0.07,
-    windowDays: 14,
     sampleReviews: [
       'Shipping took 11 days and tracking never updated.',
       'Arrived late and the outer sleeve was torn.',
     ],
-    emailSentTo: 'demo@novabrew.co',
+    readAt: null,
     triggeredAt: '2026-07-05T15:40:00Z',
   },
   {
     id: 'al_03',
+    datasetId: 'ds_shopify',
     theme: 'Battery drain',
     severity: 'warning',
     share: 0.08,
     threshold: 0.08,
     previousShare: 0.05,
-    windowDays: 14,
     sampleReviews: [
       'The battery drains overnight even when off.',
       'Had to charge before every use on my trip.',
     ],
-    emailSentTo: null,
+    readAt: '2026-07-04T18:00:00Z',
     triggeredAt: '2026-07-04T09:10:00Z',
   },
 ];
@@ -582,5 +595,38 @@ export const MOCK_PLANS: Plan[] = [
       'AI reply drafts with seller-portal deep links',
     ],
     locked: [],
+  },
+];
+
+/* ---- Near-duplicate detection ----
+ * One templated group: three reviews rebuilt from the same skeleton, none
+ * byte-identical, which is what makes a vector query the right tool. */
+export const MOCK_DUPLICATES: DuplicateGroup[] = [
+  {
+    size: 3,
+    maxSimilarity: 0.94,
+    reviews: [
+      {
+        id: 'rv_dup_1',
+        author: 'Jenna R.',
+        rating: 5,
+        text: 'Absolutely love this product, shipping was fast and the quality is amazing.',
+        createdAt: '2026-07-02T09:14:00Z',
+      },
+      {
+        id: 'rv_dup_2',
+        author: 'Kyle M.',
+        rating: 5,
+        text: 'Absolutely love this product, the shipping was fast and quality is amazing.',
+        createdAt: '2026-07-02T09:41:00Z',
+      },
+      {
+        id: 'rv_dup_3',
+        author: 'Tara V.',
+        rating: 5,
+        text: 'Love this product absolutely, shipping fast and the quality amazing.',
+        createdAt: '2026-07-02T10:03:00Z',
+      },
+    ],
   },
 ];

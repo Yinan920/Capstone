@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -22,6 +23,10 @@ class Dataset(Base):
     source: Mapped[str] = mapped_column(String(10), nullable=False, default="csv", server_default=text("'csv'"))
     product_name: Mapped[str] = mapped_column(String(200), nullable=False)
     review_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    # One actionable sentence written from this dataset's own themes at the end
+    # of analysis. Nullable: datasets analyzed before this column existed, and
+    # any run where the summarizing call failed, simply have no takeaway.
+    takeaway: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), server_default=text("now()")
     )

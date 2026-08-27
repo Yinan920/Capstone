@@ -1,4 +1,5 @@
 import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
   Crown,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { USE_MOCKS } from '@/lib/config';
+import { getAlerts } from '@/lib/api';
 import TierToggle from '@/components/ui/TierToggle';
 import DatasetSwitcher from './DatasetSwitcher';
 import Logo from './Logo';
@@ -33,6 +35,16 @@ export default function AppShell() {
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const user = authUser ?? MOCK_USER;
+
+  // Alerts are delivered in-app, so the sidebar carries the unread count.
+  // Shares the ['alerts'] cache with the Alerts page — marking one read there
+  // updates this badge without a refetch. Skipped on Free, where /alerts 402s.
+  const { data: alerts } = useQuery({
+    queryKey: ['alerts'],
+    queryFn: getAlerts,
+    enabled: tier === 'premium',
+  });
+  const unreadAlerts = alerts?.filter((a) => a.readAt === null).length ?? 0;
 
   return (
     <div className="min-h-screen bg-surface text-ink">
@@ -63,6 +75,19 @@ export default function AppShell() {
               {premium && tier === 'free' && (
                 <span className="rounded-full bg-brand-grad px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">
                   Pro
+                </span>
+              )}
+              {to === '/app/alerts' && tier === 'premium' && unreadAlerts > 0 && (
+                <span
+                  className="min-w-[18px] rounded-full bg-negative px-1.5 py-0.5 text-center text-[10px] font-bold text-white"
+                  // Deliberately counts every upload, not the selected one — an
+                  // unread notification you cannot see is worse than a number
+                  // that needs explaining. The label and the Alerts page banner
+                  // are what explain it.
+                  title={`${unreadAlerts} unread across all uploads`}
+                  aria-label={`${unreadAlerts} unread alerts across all uploads`}
+                >
+                  {unreadAlerts}
                 </span>
               )}
             </NavLink>

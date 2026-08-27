@@ -66,6 +66,31 @@ class MockLLM:
         summary = f"Reviews centered on {', '.join(top)}."
         return f"General feedback: {top[0]}", summary, is_complaint
 
+    async def summarize_findings(self, themes: list[dict], net_sentiment: float) -> str:
+        """Deterministic counterpart to the real summarizer: name the complaint
+        theme with the largest share, and say whether it is growing."""
+        if not themes:
+            return "No themes were found in this dataset yet."
+        complaints = [t for t in themes if t["is_complaint"]]
+        if not complaints:
+            top = max(themes, key=lambda t: t["share"])
+            return (
+                f"No complaint theme crossed the alert threshold. Your strongest driver is "
+                f"{top['label'].lower()} at {top['share'] * 100:.0f}% of reviews — worth leaning on "
+                f"in your listing copy."
+            )
+        worst = max(complaints, key=lambda t: t["share"])
+        direction = (
+            "and it is growing" if worst["trend"] > 0.02
+            else "and it is shrinking" if worst["trend"] < -0.02
+            else "and it is holding steady"
+        )
+        return (
+            f"{worst['label']} is your largest complaint driver at "
+            f"{worst['share'] * 100:.0f}% of reviews, {direction}. Addressing it is the single "
+            f"highest-leverage fix in this dataset."
+        )
+
     async def draft_reply(self, author: str, text: str, theme_label: str | None) -> str:
         first_name = author.split(" ")[0] if author else "there"
         theme = (theme_label or "").lower()

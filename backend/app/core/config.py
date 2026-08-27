@@ -32,8 +32,15 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     embeddings_provider: str = "mock"  # mock | st
 
+    # In-flight request ceilings for the two LLM stages. Env-tunable on purpose:
+    # the right value depends on the account's rate limits, not on the code, so
+    # it can be dialled back on a deployed service without a rebuild. The SDK
+    # retries 429s twice with backoff, which means over-shooting shows up as
+    # *slower* runs rather than errors — see docs/benchmarks.md.
+    sentiment_concurrency: int = 8
+    theme_label_concurrency: int = 8
+
     alert_threshold: float = 0.15
-    alert_window_days: int = 14
 
     cors_origins: str = "http://localhost:5173"
 

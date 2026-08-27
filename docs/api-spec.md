@@ -270,6 +270,7 @@ Everything the insights dashboard renders for one dataset, aggregated from the a
     "source": "amazon",
     "productName": "NovaBrew Go Portable Espresso Maker",
     "reviewCount": 50,
+    "takeaway": "Address packaging damage immediately \u2014 it is your worst complaint at -0.63 sentiment affecting 10% of reviews and growing (+2%).",
     "createdAt": "2026-07-06T12:00:00Z"
   },
   "kpis": {
@@ -278,7 +279,8 @@ Everything the insights dashboard renders for one dataset, aggregated from the a
     "positiveRate": 0.66,
     "complaintThemes": 3,
     "avgRating": 4.1,
-    "responseOpportunities": 8
+    "responseOpportunities": 8,
+    "netSentimentDelta": -4
   },
   "trend": [
     { "date": "2026-06-22", "positive": 61, "neutral": 20, "negative": 19, "score": 0.42 },
@@ -333,6 +335,8 @@ Field notes:
 - `trend` — weekly buckets; `positive/neutral/negative` are percentages (0–100), `score` = (positive − negative) / 100.
 - `distribution` — percentage split over all analyzed reviews.
 - `kpis.responseOpportunities` — count of negative reviews (candidates for the reply studio).
+- `kpis.netSentimentDelta` — change in net sentiment between the first and last weekly bucket, in percentage points. `null` when the dataset spans fewer than two weeks, in which case the UI hides the indicator rather than showing a zero.
+- `dataset.takeaway` — one actionable sentence generated from this dataset's own themes at the end of analysis. `null` for datasets analyzed before the field existed, or when the summarizing call failed (it is deliberately non-fatal; see below).
 - `themes[].share` — fraction (0–1) of reviews in the cluster; `trend` = share change vs the previous half of the window.
 
 **Errors:**
@@ -341,7 +345,42 @@ Field notes:
 
 ---
 
+## 9b. `GET /api/datasets/{datasetId}/duplicates`
+
+Groups of reviews with near-identical wording — a templated-review signal. Found by cosine distance over the stored pgvector embeddings, because templated reviews are reworded rather than copied: exact matching and hashing find nothing, while cosine distance stays small.
+
+Served separately from the dashboard because the search is quadratic in the dataset while the dashboard is a set of aggregates — the page that loads on every visit should not pay for it. Available on any analyzed dataset the caller owns; an integrity check is not a paid upsell.
+
+**Output — 200:**
+```json
+[
+  {
+    "size": 3,
+    "maxSimilarity": 0.94,
+    "reviews": [
+      {
+        "id": "0c1d2e3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f",
+        "author": "Jenna R.",
+        "rating": 5,
+        "text": "Absolutely love this product, shipping was fast and the quality is amazing.",
+        "createdAt": "2026-07-02T09:14:00Z"
+      }
+    ]
+  }
+]
+```
+
+Groups are connected components at a cosine distance of 0.15 (~0.85 similarity), so A~B and B~C yield one group of three — a reused template drifts as it is edited. A clean dataset returns `[]`. The threshold is deliberately conservative: a false positive accuses a real customer of writing a fake review.
+
+**No ANN index is built.** `<=>` runs an exact scan and a dataset holds at most 200 rows, where an ivfflat or HNSW index would add build and maintenance cost to return the same answer more slowly.
+
+**Errors:** 404 — dataset not found or not the caller's.
+
+---
+
 ## 10. `GET /api/competitors` — premium
+
+**Query parameters:** `datasetId` *(optional)* — which of the caller's datasets is benchmarked as "you". Omitted, the newest analyzed dataset is used. An id that is unknown, malformed, or belongs to another user returns `[]` rather than silently benchmarking a different dataset. The frontend always sends it, so the page follows the dataset switcher.
 
 Competitor benchmarking board. Compares the caller's primary dataset stats against seeded competitor profiles; radar axes and sentiment splits are computed server-side.
 
@@ -391,24 +430,24 @@ Competitor benchmarking board. Compares the caller's primary dataset stats again
 
 ## 11. `GET /api/alerts` — premium
 
-Smart feedback alerts produced by the rule engine that runs at the end of every analysis job: when a complaint theme's share of recent reviews exceeds its threshold (default 15%), an alert is persisted and a (mock-adapter) email is dispatched.
+Smart feedback alerts produced by the rule engine that runs at the end of every analysis job: when a complaint theme's share of the dataset exceeds its threshold (default 15%), an alert is persisted. **Alerts are delivered in-app** — the row *is* the notification, and it arrives unread (`readAt: null`). Nothing is pushed outside the application.
 
 **Output — 200:**
 ```json
 [
   {
     "id": "b6c7d8e9-f0a1-4b2c-9d3e-4f5a6b7c8d9e",
+    "datasetId": "7f2c9a4b-1d3e-4c5f-9a8b-0e1f2a3b4c5d",
     "theme": "Packaging damaged",
     "severity": "critical",
     "share": 0.18,
     "threshold": 0.15,
     "previousShare": 0.09,
-    "windowDays": 14,
     "sampleReviews": [
       "Arrived with the box crushed and the pressure gauge cracked.",
       "Packaging was flimsy, unit was dented on arrival."
     ],
-    "emailSentTo": "demo@novabrew.co",
+    "readAt": null,
     "triggeredAt": "2026-07-19T10:16:02Z"
   }
 ]
@@ -416,11 +455,33 @@ Smart feedback alerts produced by the rule engine that runs at the end of every 
 
 Severity rule: `share ≥ threshold + 0.05` → `critical`; `share ≥ threshold` → `serious`; within 0.02 below threshold → `warning`.
 
+The feed spans **all** of the caller's datasets and is not filtered server-side: a seller's alert count is bounded by datasets × complaint themes — tens, not thousands — so returning it whole lets the sidebar count every unread while the Alerts page narrows to the selected dataset by `datasetId`, from one cached response. A `datasetId` query parameter is the change if that bound stops holding.
+
+`previousShare` is the theme's share across the **earlier half of the same upload**, not a reading from a previous time window.
+
 **Errors:** 402 — `{ "detail": "Smart alerts are a Premium feature. Upgrade to unlock." }`
 
 ---
 
-## 12. `POST /api/reviews/{reviewId}/reply-draft` — premium
+## 12. `PATCH /api/alerts/{alertId}/read` — premium
+
+Mark one alert read. **Idempotent** — re-reading an already-read alert keeps the original `readAt` rather than restamping it. Returns the updated alert in the same shape as endpoint 11.
+
+**Errors:** 402 — not premium. 404 — no such alert, or it belongs to another user (ownership failures are 404, never 403, so the endpoint does not confirm that someone else's alert id exists).
+
+---
+
+## 13. `POST /api/alerts/read-all` — premium
+
+**Query parameters:** `datasetId` *(optional)* — scope the action to one upload. The UI passes it for the button shown beside a single dataset's alerts, so the blast radius matches what is on screen; clearing every upload is a separate, explicitly labelled action. An unparseable id matches nothing rather than falling through to "all".
+
+Marks unread alerts read in one round trip, and returns the caller's full alert list in its new state. Alerts already read are left untouched.
+
+**Errors:** 402 — `{ "detail": "Smart alerts are a Premium feature. Upgrade to unlock." }`
+
+---
+
+## 14. `POST /api/reviews/{reviewId}/reply-draft` — premium
 
 Generate (via LLM adapter — mock by default, Claude when a key is configured) and persist a brand-tone reply draft for a review, with a deep link to the matching seller portal.
 
@@ -444,7 +505,7 @@ Generate (via LLM adapter — mock by default, Claude when a key is configured) 
 
 ---
 
-## 13. `GET /api/billing/plans`
+## 15. `GET /api/billing/plans`
 
 Plan catalogue. Served from the API so pricing and limits have a single source of truth — the caps returned here are the same values the upload endpoint enforces.
 
@@ -486,7 +547,7 @@ Plan catalogue. Served from the API so pricing and limits have a single source o
 
 ---
 
-## 14. `POST /api/billing/upgrade`
+## 16. `POST /api/billing/upgrade`
 
 Activate Premium for the authenticated account. **Payment is deliberately stubbed:** this endpoint performs the tier transition — the part the application owns — and takes no card details. The production design is Stripe Checkout, where the client is redirected to a Stripe-hosted page and Stripe calls a webhook that flips the tier; card data never reaches this server, which keeps the application out of PCI DSS scope. This handler is where that webhook's logic would live.
 
@@ -511,7 +572,7 @@ Premium endpoints (10, 11, 12) answer `200` for the **same** bearer token immedi
 
 ---
 
-## 15. `POST /api/billing/downgrade`
+## 17. `POST /api/billing/downgrade`
 
 Return to the Free plan. Exists so the tier transition is demonstrable in both directions; in production this is a subscription cancellation.
 
@@ -525,7 +586,7 @@ Return to the Free plan. Exists so the tier transition is demonstrable in both d
 
 ---
 
-## 16. `DELETE /api/datasets/{datasetId}`
+## 18. `DELETE /api/datasets/{datasetId}`
 
 Delete a dataset and everything derived from it. Foreign-key cascades remove the reviews, the analysis job, theme clusters, keyword stats, alerts and reply drafts, so no orphan rows survive.
 

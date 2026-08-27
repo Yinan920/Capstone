@@ -11,14 +11,15 @@ import json
 from anthropic import AsyncAnthropic
 
 from app.core.config import settings
+from app.integrations.llm.pricing import UsageLedger
 
 SENTIMENT_MODEL = "claude-haiku-4-5"
 THEME_MODEL = "claude-sonnet-5"
 
-# Reviews per sentiment request, and how many requests may be in flight at once.
-# Small batches are what make the per-item count reliable; see score().
+# Reviews per sentiment request. Small batches are what make the per-item count
+# reliable; see score(). The in-flight ceiling is `settings.sentiment_concurrency`
+# so it can be tuned per deployment without a rebuild.
 SENTIMENT_BATCH = 25
-SENTIMENT_CONCURRENCY = 4
 
 SENTIMENT_SCHEMA = {
     "type": "object",
@@ -60,12 +61,25 @@ def _json_text(response) -> dict:
 class AnthropicLLM:
     def __init__(self) -> None:
         self._client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+        # Every response carries its own token counts, so metering is exact
+        # rather than estimated — no local tokenizer, nothing to drift out of
+        # sync with the provider's own accounting.
+        self.usage = UsageLedger()
+
+    async def _create(self, **kwargs):
+        """Single choke point for `messages.create` so no call can be added
+        later that silently escapes metering."""
+        response = await self._client.messages.create(**kwargs)
+        self.usage.record(
+            kwargs["model"], response.usage.input_tokens, response.usage.output_tokens
+        )
+        return response
 
     async def _score_chunk(self, texts: list[str], ratings: list[int]) -> list[tuple[float, str]]:
         numbered = "\n".join(
             f"{i + 1}. (rating {r}/5) {t}" for i, (t, r) in enumerate(zip(texts, ratings))
         )
-        response = await self._client.messages.create(
+        response = await self._create(
             model=SENTIMENT_MODEL,
             max_tokens=8192,
             system=(
@@ -93,7 +107,7 @@ class AnthropicLLM:
         """
         pairs = list(zip(texts, ratings))
         chunks = [pairs[i:i + SENTIMENT_BATCH] for i in range(0, len(pairs), SENTIMENT_BATCH)]
-        sem = asyncio.Semaphore(SENTIMENT_CONCURRENCY)
+        sem = asyncio.Semaphore(settings.sentiment_concurrency)
 
         async def run(chunk):
             async with sem:
@@ -109,7 +123,7 @@ class AnthropicLLM:
 
     async def label_cluster(self, texts: list[str], avg_sentiment: float) -> tuple[str, str, bool]:
         sample = "\n".join(f"- {t}" for t in texts[:30])
-        response = await self._client.messages.create(
+        response = await self._create(
             model=THEME_MODEL,
             max_tokens=1024,
             system=(
@@ -129,8 +143,43 @@ class AnthropicLLM:
         data = _json_text(response)
         return data["label"], data["summary"], bool(data["is_complaint"])
 
+    async def summarize_findings(self, themes: list[dict], net_sentiment: float) -> str:
+        """One actionable takeaway across all themes.
+
+        Uses the cheap model on purpose: the input is already-distilled theme
+        statistics, not raw reviews, and this call sits on the analysis critical
+        path — so it is scoped to add ~1 s rather than the ~3 s a Sonnet call
+        costs. It is also the one call whose failure must not fail the job;
+        see the caller in `pipeline._run`.
+        """
+        lines = "\n".join(
+            f"- {t['label']}: {t['share'] * 100:.0f}% of reviews, "
+            f"avg sentiment {t['avg_sentiment']:+.2f}, "
+            f"{'complaint' if t['is_complaint'] else 'strength'}, "
+            f"trend {t['trend']:+.0%} between the first and second half of the period"
+            for t in themes
+        )
+        response = await self._create(
+            model=SENTIMENT_MODEL,
+            max_tokens=300,
+            system=(
+                "You advise e-commerce sellers. Given the analyzed themes from one batch "
+                "of their product reviews, write ONE takeaway of at most 45 words naming "
+                "the single highest-leverage action. Be concrete and reference the actual "
+                "numbers given. No preamble, no bullet points, no greeting — just the "
+                "takeaway itself."
+            ),
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"Overall net sentiment: {net_sentiment:+.2f}\nThemes:\n{lines}",
+                }
+            ],
+        )
+        return next(b.text for b in response.content if b.type == "text").strip()
+
     async def draft_reply(self, author: str, text: str, theme_label: str | None) -> str:
-        response = await self._client.messages.create(
+        response = await self._create(
             model=THEME_MODEL,
             max_tokens=1024,
             system=(

@@ -16,6 +16,7 @@ import type {
   CompetitorComparison,
   DashboardData,
   Dataset,
+  DuplicateGroup,
   FeedbackAlert,
   Plan,
   ReplyDraft,
@@ -28,6 +29,7 @@ import {
   MOCK_ALERTS,
   MOCK_COMPETITORS,
   MOCK_DATASETS,
+  MOCK_DUPLICATES,
   MOCK_PLANS,
   MOCK_USER,
   getMockDashboard,
@@ -163,16 +165,52 @@ export async function getDashboard(datasetId: string): Promise<DashboardData> {
   return http<DashboardData>(`/datasets/${datasetId}/dashboard`);
 }
 
-/** GET /competitors — premium only */
-export async function getCompetitorComparisons(): Promise<CompetitorComparison[]> {
+/** GET /datasets/:id/duplicates — reviews with near-identical wording. */
+export async function getNearDuplicates(datasetId: string): Promise<DuplicateGroup[]> {
+  if (USE_MOCKS) return delay(MOCK_DUPLICATES, MOCK_LATENCY);
+  return http<DuplicateGroup[]>(`/datasets/${datasetId}/duplicates`);
+}
+
+/** GET /competitors — premium only.
+ *  `datasetId` selects which of your datasets is benchmarked; the server falls
+ *  back to the newest analysed one when it is omitted. */
+export async function getCompetitorComparisons(
+  datasetId?: string,
+): Promise<CompetitorComparison[]> {
   if (USE_MOCKS) return delay(MOCK_COMPETITORS, MOCK_LATENCY);
-  return http<CompetitorComparison[]>('/competitors');
+  const query = datasetId ? `?datasetId=${encodeURIComponent(datasetId)}` : '';
+  return http<CompetitorComparison[]>(`/competitors${query}`);
 }
 
 /** GET /alerts — premium only */
 export async function getAlerts(): Promise<FeedbackAlert[]> {
   if (USE_MOCKS) return delay(MOCK_ALERTS, MOCK_LATENCY);
   return http<FeedbackAlert[]>('/alerts');
+}
+
+/** PATCH /alerts/:id/read — premium only. Idempotent. */
+export async function markAlertRead(alertId: string): Promise<FeedbackAlert> {
+  if (USE_MOCKS) {
+    const alert = MOCK_ALERTS.find((a) => a.id === alertId)!;
+    return delay({ ...alert, readAt: new Date().toISOString() }, MOCK_LATENCY);
+  }
+  return http<FeedbackAlert>(`/alerts/${alertId}/read`, { method: 'PATCH' });
+}
+
+/** POST /alerts/read-all — premium only. Returns the caller's whole list, restamped.
+ *  `datasetId` scopes the action to one upload; omitted, it clears every upload. */
+export async function markAllAlertsRead(datasetId?: string): Promise<FeedbackAlert[]> {
+  if (USE_MOCKS) {
+    const now = new Date().toISOString();
+    return delay(
+      MOCK_ALERTS.map((a) =>
+        !datasetId || a.datasetId === datasetId ? { ...a, readAt: a.readAt ?? now } : a,
+      ),
+      MOCK_LATENCY,
+    );
+  }
+  const query = datasetId ? `?datasetId=${encodeURIComponent(datasetId)}` : '';
+  return http<FeedbackAlert[]>(`/alerts/read-all${query}`, { method: 'POST' });
 }
 
 /** POST /reviews/:id/reply-draft — premium only */
@@ -197,6 +235,9 @@ async function mockUpload(input: UploadInput): Promise<UploadResponse> {
     source: input.source,
     productName: input.productName,
     reviewCount: 50,
+    takeaway:
+      'Packaging damage is your largest complaint driver at 24% of reviews, and it is growing. ' +
+      'Addressing it is the single highest-leverage fix in this dataset.',
     createdAt: new Date().toISOString(),
   };
   const job: AnalysisJob = {

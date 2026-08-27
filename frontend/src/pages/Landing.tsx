@@ -157,7 +157,7 @@ function HeroPreview() {
           </span>
           <div>
             <p className="text-xs font-bold">Packaging spiked 18%</p>
-            <p className="text-[10px] text-ink/45">Alert email sent</p>
+            <p className="text-[10px] text-ink/45">New alert · unread</p>
           </div>
         </div>
       </div>
@@ -187,8 +187,8 @@ function TrustBar() {
 const FEATURES = [
   {
     icon: Upload,
-    title: 'Dual-track data ingestion',
-    body: 'Drop a CSV or paste a product URL. We pull and normalize reviews from any channel into one clean model.',
+    title: 'Validated CSV ingestion',
+    body: 'Export reviews from any channel and drop the CSV in. Every row is validated on upload — bad ratings and dates come back with the line number, not a silent failure.',
     accent: 'from-brand-500 to-violet-500',
   },
   {
@@ -207,7 +207,7 @@ const FEATURES = [
   {
     icon: Bell,
     title: 'Smart feedback alerts',
-    body: 'When a negative theme breaks its threshold, you get an email instantly — problems caught before they spread.',
+    body: 'When a negative theme breaks its threshold, an alert lands in your feed with the reviews that triggered it — problems caught before they spread.',
     accent: 'from-negative to-warning',
     premium: true,
   },
@@ -345,10 +345,9 @@ function Pricing() {
             <ul className="mt-6 space-y-3 text-sm">
               {[
                 'Everything in Free',
-                'One-click URL scraping (Amazon, Shopify, TikTok)',
                 'Up to 200 reviews per analysis',
                 'Competitor benchmarking board',
-                'Smart email alerts',
+                'Smart complaint-threshold alerts',
                 'AI reply-draft optimizer',
               ].map((f) => (
                 <PricingRow key={f} label={f} light />

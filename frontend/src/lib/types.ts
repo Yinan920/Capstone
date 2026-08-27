@@ -27,6 +27,10 @@ export interface Dataset {
   source: Channel;
   productName: string;
   reviewCount: number;
+  /** One actionable sentence generated from this dataset's own themes during
+   *  analysis. Null for datasets analysed before the feature existed, or when
+   *  the summarising call failed — the dashboard hides the panel either way. */
+  takeaway: string | null;
   createdAt: string;
 }
 
@@ -123,12 +127,33 @@ export interface DashboardData {
     complaintThemes: number;
     avgRating: number;
     responseOpportunities: number;
+    /** Net-sentiment change in percentage points between the first and last
+     *  week of the dataset. Null when the reviews span under two weeks. */
+    netSentimentDelta: number | null;
   };
   trend: SentimentPoint[];
   distribution: SentimentDistribution;
   themes: ThemeCluster[];
   keywords: KeywordStat[];
   reviews: Review[];
+}
+
+/* ---- Near-duplicate detection ---- */
+
+export interface DuplicateMember {
+  id: string;
+  author: string;
+  rating: number;
+  text: string;
+  createdAt: string;
+}
+
+/** A cluster of reviews with near-identical wording — a templated-review signal. */
+export interface DuplicateGroup {
+  size: number;
+  /** Cosine similarity of the furthest member to the group's earliest review. */
+  maxSimilarity: number;
+  reviews: DuplicateMember[];
 }
 
 /* ---- Competitor benchmarking (premium) ---- */
@@ -168,16 +193,20 @@ export type AlertSeverity = 'warning' | 'serious' | 'critical';
 
 export interface FeedbackAlert {
   id: string;
+  /** The upload that raised this alert. The feed is fetched whole and grouped
+   *  client-side, so the sidebar can count every unread while the Alerts page
+   *  shows only the dataset you have selected. */
+  datasetId: string;
   theme: string;
   severity: AlertSeverity;
   share: number; // 0..1 current share of recent reviews
   threshold: number; // 0..1 configured trigger threshold
   previousShare: number;
-  windowDays: number;
   sampleReviews: string[];
-  emailSentTo: string | null;
+  /** Null until the seller opens it. Alerts are delivered in-app, so this is
+   *  the delivery state that actually exists — nothing is pushed outward. */
+  readAt: string | null;
   triggeredAt: string;
-  isNew?: boolean;
 }
 
 /* ---- Reply-draft optimizer (premium) ---- */

@@ -89,11 +89,13 @@ export default function Upgrade() {
           <div className="text-sm text-ink/60">
             <p className="font-semibold text-ink">About the payment step</p>
             <p className="mt-1 leading-relaxed">
-              Activating a plan here changes your account tier immediately — no card required.
-              The production design routes payment through <strong>Stripe Checkout</strong>, a
-              Stripe-hosted page that calls back to a webhook which performs exactly this tier
-              change. Card details never touch our servers, which keeps SellerSense out of PCI
-              DSS scope. Checkout is scheduled for a later milestone.
+              Activating a plan here changes your account tier immediately — no card required, and
+              nothing is charged. What this project implements is <strong>entitlement</strong>: the
+              tier transition and the API-side gating that enforces it, which is why a free account
+              gets a real 402 from the premium endpoints rather than a hidden button. Billing
+              itself is not built. The usual shape would be a hosted checkout such as{' '}
+              <strong>Stripe Checkout</strong>, whose webhook performs exactly this tier change —
+              keeping card data off our servers entirely.
             </p>
           </div>
         </div>

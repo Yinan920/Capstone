@@ -15,6 +15,7 @@ import ThemeList from '@/components/dashboard/ThemeList';
 import KeywordChips from '@/components/dashboard/KeywordChips';
 import ReviewDrill from '@/components/dashboard/ReviewDrill';
 import DeleteDataset from '@/components/dashboard/DeleteDataset';
+import DuplicateReviews from '@/components/dashboard/DuplicateReviews';
 import { formatPct, formatSignedPct, sentimentTone } from '@/lib/utils';
 
 export default function Dashboard() {
@@ -101,7 +102,15 @@ export default function Dashboard() {
           label="Net sentiment"
           value={formatSignedPct(kpis.netSentiment)}
           accent={tone.role}
-          delta={{ value: '4 pts', positive: false }}
+          // Only shown when the dataset spans enough weeks to have a trend.
+          delta={
+            kpis.netSentimentDelta === null || kpis.netSentimentDelta === 0
+              ? undefined
+              : {
+                  value: `${Math.abs(kpis.netSentimentDelta)} pts`,
+                  positive: kpis.netSentimentDelta > 0,
+                }
+          }
           hint={tone.label}
         />
         <StatTile
@@ -123,7 +132,7 @@ export default function Dashboard() {
         <Card className="lg:col-span-2">
           <CardHeader
             title="Sentiment over time"
-            subtitle="Weekly mix across the last 12 weeks — negativity climbs as packaging issues emerge."
+            subtitle={`Weekly mix across ${trend.length} week${trend.length === 1 ? '' : 's'} of reviews.`}
           />
           <SentimentTrendChart data={trend} />
         </Card>
@@ -153,15 +162,16 @@ export default function Dashboard() {
         <Card>
           <CardHeader title="High-frequency terms" subtitle="Sized by mentions, colored by sentiment" />
           <KeywordChips keywords={keywords} />
-          <div className="mt-6 rounded-xl bg-brand-50/60 p-4">
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-700">
-              <Sparkles className="h-4 w-4" /> AI takeaway
-            </p>
-            <p className="mt-1 text-sm text-ink/60">
-              Packaging damage is your fastest-rising complaint. Fixing fulfillment could lift net
-              sentiment by an estimated <span className="font-semibold text-ink">9 points</span>.
-            </p>
-          </div>
+          {/* Written by the model from this dataset's own themes during analysis.
+              Absent for datasets analysed before the feature shipped. */}
+          {dataset.takeaway && (
+            <div className="mt-6 rounded-xl bg-brand-50/60 p-4">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-700">
+                <Sparkles className="h-4 w-4" /> AI takeaway
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-ink/60">{dataset.takeaway}</p>
+            </div>
+          )}
         </Card>
         <Card className="lg:col-span-2">
           <CardHeader
@@ -170,6 +180,11 @@ export default function Dashboard() {
           />
           <ReviewDrill reviews={reviews} />
         </Card>
+      </div>
+
+      {/* Data-integrity check, below the analysis it qualifies. */}
+      <div className="mt-4">
+        <DuplicateReviews datasetId={dataset.id} />
       </div>
     </>
   );

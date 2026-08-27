@@ -44,14 +44,19 @@ class CompetitorComparisonOut(CamelModel):
 
 class AlertOut(CamelModel):
     id: Id
+    # Which upload raised this alert. The feed is returned whole and grouped
+    # client-side: a seller's alert count is bounded by datasets × complaint
+    # themes — tens, not thousands — so one request keeps the sidebar's global
+    # unread badge and the per-dataset list in a single cache entry. A
+    # `datasetId` filter on the endpoint is the change if that stops holding.
+    dataset_id: Id
     theme: str
     severity: str
     share: float
     threshold: float
     previous_share: float
-    window_days: int
     sample_reviews: list[str]
-    email_sent_to: Optional[str] = None
+    read_at: Optional[datetime] = None
     triggered_at: datetime
 
 

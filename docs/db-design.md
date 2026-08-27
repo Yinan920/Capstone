@@ -92,9 +92,8 @@ erDiagram
         float share
         float threshold
         float previous_share
-        int window_days
         jsonb sample_reviews
-        varchar email_sent_to "nullable"
+        timestamptz read_at "nullable"
         timestamptz triggered_at
     }
     competitors {
@@ -213,9 +212,8 @@ CREATE TABLE feedback_alerts (
     share          REAL        NOT NULL,                 -- current share 0..1
     threshold      REAL        NOT NULL,                 -- configured trigger
     previous_share REAL        NOT NULL,
-    window_days    INTEGER     NOT NULL DEFAULT 14,
     sample_reviews JSONB       NOT NULL DEFAULT '[]',    -- array of excerpt strings
-    email_sent_to  VARCHAR(255),                         -- null = not emailed
+    read_at        TIMESTAMPTZ,                          -- null = unread
     triggered_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX ix_feedback_alerts_user_id ON feedback_alerts(user_id);
