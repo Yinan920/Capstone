@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend — 56 tests on real Postgres + pgvector
+    runs-on: ubuntu-latest
+    services:
+      # The suite runs against a real database with real migrations, not
+      # SQLite or mocks: pgvector types and FK cascades are exactly the parts
+      # a substitute would fail to catch. Credentials match tests/conftest.py.
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: sellersense
+          POSTGRES_PASSWORD: sellersense
+          POSTGRES_DB: sellersense
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sellersense"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12" # matches the production image
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Test
+        # conftest.py creates and migrates sellersense_test itself; it only
+        # needs the server reachable on localhost:5432.
+        run: pytest -q
+
+  frontend:
+    name: frontend — typecheck + 24 tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22" # matches the production image
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Test
+        run: npm test
+
+  quality-gate:
+    name: quality gate — sentiment macro-F1 floor
+    runs-on: ubuntu-latest
+    # Lifted to job scope so the step-level `if` can read it: a step's own
+    # `env:` block is not in scope for its own condition.
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Install
+        # `anthropic` is an optional extra, so it has to be asked for here even
+        # though the deterministic gate below does not need it — the production
+        # gate imports the real adapter.
+        run: pip install -e ".[dev,anthropic]"
+
+      # No database and no API key needed: the deterministic adapter is scored
+      # against the committed gold set. This is the floor that runs on every
+      # push, including from forks, where secrets are unavailable.
+      - name: Evaluate deterministic adapter
+        run: python -m scripts.eval_sentiment --min-macro-f1 0.74
+
+      # The production path is only reachable when the repository secret is
+      # configured. Gated on the secret rather than assumed, so a fork or a
+      # key rotation degrades to the free check instead of failing red for a
+      # reason that has nothing to do with the change under test.
+      - name: Evaluate production model
+        if: env.ANTHROPIC_API_KEY != ''
+        run: python -m scripts.eval_sentiment --with-haiku --min-macro-f1 0.80
